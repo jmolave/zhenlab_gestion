@@ -215,110 +215,146 @@
 
 <div id="tab-proveedores" class="page">
 
-  <!-- SUBTABS -->
-  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-    <button class="btn" id="ptab-btn-pedido" onclick="showProvTab('pedido')" style="background:var(--green);color:white;padding:8px 18px;font-size:13px">📦 Nuevo pedido</button>
-    <button class="btn" id="ptab-btn-pago" onclick="showProvTab('pago')" style="background:none;border:1.5px solid var(--border);color:var(--dark);padding:8px 18px;font-size:13px">💸 Registrar pago</button>
-    <button class="btn" id="ptab-btn-lista" onclick="showProvTab('lista')" style="background:none;border:1.5px solid var(--border);color:var(--dark);padding:8px 18px;font-size:13px">🏭 Mis proveedores</button>
-    <button class="btn" id="ptab-btn-historial" onclick="showProvTab('historial')" style="background:none;border:1.5px solid var(--border);color:var(--dark);padding:8px 18px;font-size:13px">📋 Historial</button>
+  <!-- VISTA LISTA (default) -->
+  <div id="prov-vista-lista">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div style="font-family:'DM Serif Display',serif;font-size:18px">Proveedores</div>
+      <button class="btn" onclick="showAgregarProveedor()" style="background:var(--green);color:white;padding:8px 18px;font-size:13px">+ Nuevo proveedor</button>
+    </div>
+    <div id="prov-cards-lista"></div>
+
+    <!-- FORM AGREGAR PROVEEDOR (oculto por defecto) -->
+    <div id="prov-form-nuevo" style="display:none">
+      <div class="card" style="border:2px solid var(--green)">
+        <div class="card-title">Nuevo proveedor</div>
+        <div class="form-grid">
+          <div class="field"><label>Nombre / Razón social</label><input type="text" id="ln-nombre" placeholder="Nombre del proveedor"></div>
+          <div class="field"><label>Persona de contacto</label><input type="text" id="ln-contacto" placeholder="Nombre"></div>
+          <div class="field"><label>Teléfono / WhatsApp</label><input type="text" id="ln-tel" placeholder="+54 9..."></div>
+          <div class="field"><label>Email</label><input type="email" id="ln-email" placeholder="email@ejemplo.com"></div>
+          <div class="field"><label>Instagram</label><input type="text" id="ln-ig" placeholder="@usuario"></div>
+          <div class="field"><label>Dirección</label><input type="text" id="ln-dir" placeholder="Dirección"></div>
+          <div class="field"><label>% costo por defecto</label><input type="number" id="ln-pct" value="40" min="1" max="100"></div>
+          <div class="field span2"><label>Notas</label><input type="text" id="ln-notas" placeholder="Cualquier dato adicional"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:16px">
+          <button class="btn btn-primary" id="btn-ln" onclick="guardarNuevoProveedor()" style="margin-top:0;flex:1">+ Guardar proveedor</button>
+          <button class="btn" onclick="document.getElementById('prov-form-nuevo').style.display='none'" style="background:none;border:1.5px solid var(--border);margin-top:0;padding:12px 20px">Cancelar</button>
+        </div>
+        <div class="success-msg" id="ln-ok">✓ Proveedor guardado</div>
+      </div>
+    </div>
   </div>
 
-  <!-- CUENTA CORRIENTE RESUMEN -->
-  <div id="proveedores-resumen"></div>
+  <!-- VISTA FICHA PROVEEDOR -->
+  <div id="prov-vista-ficha" style="display:none">
+    <!-- Header ficha -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <button onclick="volverALista()" style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--dark)">← Volver</button>
+      <div style="font-family:'DM Serif Display',serif;font-size:20px" id="ficha-nombre-title"></div>
+    </div>
 
-  <!-- NUEVO PEDIDO -->
-  <div id="ptab-pedido" class="prov-section">
-    <div class="card">
-      <div class="card-title">Nuevo pedido</div>
-      <div class="form-grid">
-        <div class="field">
-          <label>Proveedor</label>
-          <div style="display:flex;gap:8px">
-            <select id="p-proveedor" onchange="filtrarProductosProv()" style="flex:1"><option value="">— Elegir —</option></select>
-            <button class="btn-sm" onclick="showModalProveedor()" title="Agregar proveedor">+</button>
-          </div>
+    <!-- Saldo card -->
+    <div class="card" style="border-left:4px solid var(--green);margin-bottom:16px" id="ficha-saldo-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--light-green);margin-bottom:4px">Saldo pendiente</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:32px" id="ficha-saldo">$0</div>
         </div>
-        <div class="field">
-          <label>Producto</label>
-          <div style="display:flex;gap:8px">
-            <select id="p-producto" onchange="calcCostoPedido()" style="flex:1"><option value="">— Elegir —</option></select>
-            <button class="btn-sm" onclick="showModalProductoRapido()" title="Agregar producto">+</button>
-          </div>
-        </div>
-        <div class="field"><label>Cantidad</label><input type="number" id="p-cantidad" min="1" value="1" oninput="calcCostoPedido()"></div>
-        <div class="field"><label>Depósito destino</label><select id="p-deposito"><option value="">— Elegir —</option><option value="juanma">Juanma</option><option value="sofi">Sofi</option></select></div>
-        <div class="field"><label>Pagó</label><select id="p-pago"><option value="">— Elegir —</option><option value="Juanma">Juanma</option><option value="Sofi">Sofi</option><option value="Ambos">Ambos</option></select></div>
-        <div class="field"><label>Fecha</label><input type="date" id="p-fecha"></div>
-        <div class="field span2" id="p-costo-wrap" style="display:none">
-          <div style="background:var(--cream);border:1.5px solid var(--green);border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:13px;color:var(--light-green)">Costo total estimado</span>
-            <span id="p-costo-total-show" style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--green)">$0</span>
-          </div>
+        <div style="text-align:right;font-size:13px;color:var(--light-green)">
+          <div>Total pedidos: <strong id="ficha-total-pedidos" style="color:var(--dark)">$0</strong></div>
+          <div>Total pagado: <strong id="ficha-total-pagado" style="color:var(--green)">$0</strong></div>
         </div>
       </div>
-      <div class="alert" id="p-alert">⚠️ Completá todos los campos obligatorios.</div>
-      <button class="btn btn-primary" id="btn-prov" onclick="registrarPedido()">📦 Confirmar pedido — suma al stock</button>
-      <div class="success-msg" id="p-ok">✓ Pedido registrado</div>
     </div>
-  </div>
 
-  <!-- REGISTRAR PAGO -->
-  <div id="ptab-pago" class="prov-section" style="display:none">
-    <div class="card">
-      <div class="card-title">Registrar pago a proveedor</div>
-      <div class="form-grid">
-        <div class="field"><label>Proveedor</label><select id="pp-proveedor" onchange="cargarPedidosPendientes()"><option value="">— Elegir —</option></select></div>
-        <div class="field"><label>Vincular a pedido (opcional)</label><select id="pp-pedido"><option value="">— Pago general —</option></select></div>
-        <div class="field"><label>Monto</label><input type="number" id="pp-monto" placeholder="0"></div>
-        <div class="field"><label>Pagó</label><select id="pp-quien"><option value="">— Elegir —</option><option value="Juanma">Juanma</option><option value="Sofi">Sofi</option></select></div>
-        <div class="field"><label>Fecha</label><input type="date" id="pp-fecha"></div>
-        <div class="field"><label>Nota</label><input type="text" id="pp-nota" placeholder="Opcional"></div>
+    <!-- Subtabs ficha -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn" id="ftab-btn-pedido" onclick="showFichaTab('pedido')" style="background:var(--green);color:white;padding:8px 16px;font-size:13px">📦 Nuevo pedido</button>
+      <button class="btn" id="ftab-btn-pago" onclick="showFichaTab('pago')" style="background:none;border:1.5px solid var(--border);color:var(--dark);padding:8px 16px;font-size:13px">💸 Registrar pago</button>
+      <button class="btn" id="ftab-btn-historial" onclick="showFichaTab('historial')" style="background:none;border:1.5px solid var(--border);color:var(--dark);padding:8px 16px;font-size:13px">📋 Historial</button>
+      <button class="btn" id="ftab-btn-datos" onclick="showFichaTab('datos')" style="background:none;border:1.5px solid var(--border);color:var(--dark);padding:8px 16px;font-size:13px">✏️ Datos</button>
+    </div>
+
+    <!-- Nuevo pedido -->
+    <div id="ftab-pedido" class="prov-section">
+      <div class="card">
+        <div class="card-title">Nuevo pedido</div>
+        <div class="form-grid">
+          <div class="field span2">
+            <label>Producto</label>
+            <div style="display:flex;gap:8px">
+              <select id="p-producto" onchange="calcCostoPedido()" style="flex:1"><option value="">— Elegir —</option></select>
+              <button class="btn-sm" onclick="showModalProductoRapido()" title="Agregar producto">+</button>
+            </div>
+          </div>
+          <div class="field"><label>Cantidad</label><input type="number" id="p-cantidad" min="1" value="1" oninput="calcCostoPedido()"></div>
+          <div class="field"><label>Depósito destino</label><select id="p-deposito"><option value="">— Elegir —</option><option value="juanma">Juanma</option><option value="sofi">Sofi</option></select></div>
+          <div class="field"><label>Pagó</label><select id="p-pago"><option value="">— Elegir —</option><option value="Juanma">Juanma</option><option value="Sofi">Sofi</option><option value="Ambos">Ambos</option></select></div>
+          <div class="field"><label>Fecha</label><input type="date" id="p-fecha"></div>
+          <div class="field span2" id="p-costo-wrap" style="display:none">
+            <div style="background:var(--cream);border:1.5px solid var(--green);border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:13px;color:var(--light-green)">Costo total estimado</span>
+              <span id="p-costo-total-show" style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--green)">$0</span>
+            </div>
+          </div>
+        </div>
+        <div class="alert" id="p-alert">⚠️ Completá todos los campos obligatorios.</div>
+        <button class="btn btn-primary" id="btn-prov" onclick="registrarPedido()">📦 Confirmar pedido — suma al stock</button>
+        <div class="success-msg" id="p-ok">✓ Pedido registrado</div>
       </div>
-      <button class="btn btn-primary" id="btn-pago-prov" onclick="registrarPagoProv()">💸 Registrar pago</button>
-      <div class="success-msg" id="pp-ok">✓ Pago registrado</div>
     </div>
-  </div>
 
-  <!-- MIS PROVEEDORES -->
-  <div id="ptab-lista" class="prov-section" style="display:none">
-    <div class="card">
-      <div class="card-title">Agregar proveedor</div>
-      <div class="form-grid">
-        <div class="field"><label>Nombre / Razón social</label><input type="text" id="np-nombre" placeholder="Nombre del proveedor"><input type="hidden" id="np-id"></div>
-        <div class="field"><label>Persona de contacto</label><input type="text" id="np-contacto" placeholder="Nombre"></div>
-        <div class="field"><label>Teléfono / WhatsApp</label><input type="text" id="np-tel" placeholder="+54 9..."></div>
-        <div class="field"><label>Email</label><input type="email" id="np-email" placeholder="email@ejemplo.com"></div>
-        <div class="field"><label>Instagram</label><input type="text" id="np-ig" placeholder="@usuario"></div>
-        <div class="field"><label>Dirección</label><input type="text" id="np-dir" placeholder="Dirección"></div>
-        <div class="field"><label>% costo por defecto</label><input type="number" id="np-pct" value="40" min="1" max="100"></div>
-        <div class="field span2"><label>Notas</label><input type="text" id="np-notas" placeholder="Cualquier dato adicional"></div>
+    <!-- Registrar pago -->
+    <div id="ftab-pago" class="prov-section" style="display:none">
+      <div class="card">
+        <div class="card-title">Registrar pago</div>
+        <div class="form-grid">
+          <div class="field"><label>Monto</label><input type="number" id="pp-monto" placeholder="0"></div>
+          <div class="field"><label>Pagó</label><select id="pp-quien"><option value="">— Elegir —</option><option value="Juanma">Juanma</option><option value="Sofi">Sofi</option></select></div>
+          <div class="field"><label>Fecha</label><input type="date" id="pp-fecha"></div>
+          <div class="field"><label>Nota</label><input type="text" id="pp-nota" placeholder="Opcional"></div>
+        </div>
+        <button class="btn btn-primary" id="btn-pago-prov" onclick="registrarPagoProv()">💸 Registrar pago</button>
+        <div class="success-msg" id="pp-ok">✓ Pago registrado</div>
       </div>
-      <button class="btn btn-primary" id="btn-np" onclick="guardarProveedor()">+ Guardar proveedor</button>
-      <div class="success-msg" id="np-ok">✓ Proveedor guardado</div>
     </div>
-    <div id="lista-proveedores"></div>
+
+    <!-- Historial -->
+    <div id="ftab-historial" class="prov-section" style="display:none">
+      <div class="card">
+        <div class="card-title">Pedidos</div>
+        <div class="table-wrap"><table><thead><tr><th>#</th><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Costo</th><th>Pagó</th></tr></thead><tbody id="ficha-pedidos-body"><tr><td colspan="6" class="empty-state">Sin pedidos</td></tr></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Pagos</div>
+        <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Monto</th><th>Quién</th><th>Nota</th></tr></thead><tbody id="ficha-pagos-body"><tr><td colspan="4" class="empty-state">Sin pagos</td></tr></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- Datos del proveedor -->
+    <div id="ftab-datos" class="prov-section" style="display:none">
+      <div class="card">
+        <div class="card-title">Datos del proveedor</div>
+        <div class="form-grid">
+          <div class="field"><label>Nombre / Razón social</label><input type="text" id="np-nombre" placeholder="Nombre del proveedor"><input type="hidden" id="np-id"></div>
+          <div class="field"><label>Persona de contacto</label><input type="text" id="np-contacto" placeholder="Nombre"></div>
+          <div class="field"><label>Teléfono / WhatsApp</label><input type="text" id="np-tel" placeholder="+54 9..."></div>
+          <div class="field"><label>Email</label><input type="email" id="np-email" placeholder="email@ejemplo.com"></div>
+          <div class="field"><label>Instagram</label><input type="text" id="np-ig" placeholder="@usuario"></div>
+          <div class="field"><label>Dirección</label><input type="text" id="np-dir" placeholder="Dirección"></div>
+          <div class="field"><label>% costo por defecto</label><input type="number" id="np-pct" value="40" min="1" max="100"></div>
+          <div class="field span2"><label>Notas</label><input type="text" id="np-notas" placeholder="Cualquier dato adicional"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:16px">
+          <button class="btn btn-primary" id="btn-np" onclick="guardarProveedor()" style="margin-top:0;flex:1">💾 Actualizar proveedor</button>
+          <button class="btn btn-danger" onclick="eliminarProveedorActual()" style="margin-top:0;padding:12px 20px">🗑 Eliminar</button>
+        </div>
+        <div class="success-msg" id="np-ok">✓ Guardado</div>
+      </div>
+    </div>
   </div>
 
-  <!-- HISTORIAL -->
-  <div id="ptab-historial" class="prov-section" style="display:none">
-    <div class="card">
-      <div class="card-title">Historial de pedidos</div>
-      <div class="table-wrap"><table><thead><tr><th>#</th><th>Fecha</th><th>Proveedor</th><th>Producto</th><th>Cant.</th><th>Costo</th><th>Pagado</th><th>Saldo</th><th>Pagó</th></tr></thead><tbody id="pedidos-body"><tr><td colspan="9" class="empty-state">Sin pedidos</td></tr></tbody></table></div>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL NUEVO PROVEEDOR RAPIDO -->
-<div id="modal-prov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;align-items:center;justify-content:center">
-  <div style="background:white;border-radius:16px;padding:24px;width:90%;max-width:400px">
-    <div style="font-family:'DM Serif Display',serif;font-size:16px;margin-bottom:16px">Nuevo proveedor</div>
-    <div class="field" style="margin-bottom:12px"><label>Nombre</label><input type="text" id="mp-nombre" placeholder="Nombre del proveedor"></div>
-    <div class="field" style="margin-bottom:16px"><label>% costo por defecto</label><input type="number" id="mp-pct" value="40"></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" style="margin-top:0" onclick="guardarProveedorRapido()">Guardar</button>
-      <button class="btn" style="background:none;border:1.5px solid var(--border);margin-top:0" onclick="document.getElementById('modal-prov').style.display='none'">Cancelar</button>
-    </div>
-  </div>
 </div>
 
 <!-- MODAL PRODUCTO RAPIDO -->
@@ -410,11 +446,13 @@ async function init() {
   });
   onSnapshot(query(collection(db,'pedidos'),orderBy('timestamp','desc')), snap => {
     pedidos = snap.docs.map(d=>({...d.data(),id:d.id}));
-    renderPedidos(); renderProveedoresResumen();
+    renderListaProveedores();
+    if(proveedorActual){ actualizarSaldoFicha(); renderFichaHistorial(); }
   });
   onSnapshot(query(collection(db,'pagosProv'),orderBy('timestamp','desc')), snap => {
     pagosProv = snap.docs.map(d=>({...d.data(),id:d.id}));
-    renderProveedoresResumen();
+    renderListaProveedores();
+    if(proveedorActual){ actualizarSaldoFicha(); renderFichaHistorial(); }
   });
   onSnapshot(collection(db,'proveedores'), snap => {
     proveedoresList = snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>a.nombre.localeCompare(b.nombre));
@@ -701,31 +739,21 @@ function checkAlertas() {
 
 // ===== PROVEEDORES =====
 let pedidos = [], pagosProv = [], proveedoresList = [];
+let proveedorActual = null; // proveedor abierto en ficha
 
-// --- Subtabs ---
-window.showProvTab = (tab) => {
-  document.querySelectorAll('.prov-section').forEach(s=>s.style.display='none');
-  document.getElementById('ptab-'+tab).style.display='block';
-  document.querySelectorAll('[id^="ptab-btn-"]').forEach(b=>{b.style.background='none';b.style.color='var(--dark)';b.style.border='1.5px solid var(--border)';});
-  const btn=document.getElementById('ptab-btn-'+tab);
-  if(btn){btn.style.background='var(--green)';btn.style.color='white';btn.style.border='none';}
-  fillProveedorSelects();
-  if(tab==='pedido') filtrarProductosProv();
-  if(tab==='lista') renderListaProveedores();
-};
+// Proveedores hardcodeados que siempre existen aunque no estén en Firestore
+const PROVS_HARDCODED = ['Cultivamente', 'Yuyos de la Meme'];
 
-// --- Fill proveedor selects ---
+function getAllProvNames(){
+  const fromDB = proveedoresList.map(p=>p.nombre);
+  return [...new Set([...PROVS_HARDCODED, ...fromDB])].sort();
+}
+
+// --- Fill selects que usan proveedor (producto rápido modal) ---
 function fillProveedorSelects(){
-  const names = [...new Set([...proveedoresList.map(p=>p.nombre),'Cultivamente','Yuyos de la Meme'])];
-  ['p-proveedor','pp-proveedor'].forEach(id=>{
-    const sel=document.getElementById(id); if(!sel) return;
-    const curr=sel.value;
-    sel.innerHTML='<option value="">— Elegir —</option>';
-    names.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o);});
-    if(curr) sel.value=curr;
-  });
-  // mpr-prov in modal
-  const mpr=document.getElementById('mpr-prov'); if(mpr){
+  const names = getAllProvNames();
+  const mpr = document.getElementById('mpr-prov');
+  if(mpr){
     const curr=mpr.value;
     mpr.innerHTML='<option value="">— Elegir —</option>';
     names.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;mpr.appendChild(o);});
@@ -733,18 +761,139 @@ function fillProveedorSelects(){
   }
 }
 
-window.filtrarProductosProv = () => {
-  const prov = document.getElementById('p-proveedor').value;
+// --- Vista lista ---
+window.volverALista = () => {
+  document.getElementById('prov-vista-ficha').style.display='none';
+  document.getElementById('prov-vista-lista').style.display='block';
+  proveedorActual = null;
+};
+
+window.showAgregarProveedor = () => {
+  const f=document.getElementById('prov-form-nuevo');
+  f.style.display = f.style.display==='none' ? 'block' : 'none';
+  ['ln-nombre','ln-contacto','ln-tel','ln-email','ln-ig','ln-dir','ln-notas'].forEach(x=>{const el=document.getElementById(x);if(el)el.value='';});
+  document.getElementById('ln-pct').value=40;
+};
+
+function renderListaProveedores(){
+  const cont = document.getElementById('prov-cards-lista');
+  if(!cont) return;
+  const names = getAllProvNames();
+  if(!names.length){cont.innerHTML='<div class="empty-state">Sin proveedores</div>';return;}
+  cont.innerHTML = names.map(nombre => {
+    const totalPedidos = pedidos.filter(p=>p.proveedor===nombre).reduce((a,p)=>a+(p.costoTotal||0),0);
+    const totalPagado = pagosProv.filter(p=>p.proveedor===nombre).reduce((a,p)=>a+(p.monto||0),0);
+    const saldo = totalPedidos - totalPagado;
+    const color = saldo > 0 ? 'var(--red)' : 'var(--green)';
+    return `<div class="card" style="cursor:pointer;border-left:4px solid ${color};margin-bottom:12px;transition:box-shadow 0.15s" onclick="abrirFichaProveedor('${nombre}')" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow='none'">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-weight:600;font-size:15px">${nombre}</div>
+          <div style="font-size:12px;color:var(--light-green);margin-top:4px">${pedidos.filter(p=>p.proveedor===nombre).length} pedidos · ${pagosProv.filter(p=>p.proveedor===nombre).length} pagos</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--light-green)">Saldo</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:22px;color:${color}">${fmt(saldo)}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// --- Abrir ficha ---
+window.abrirFichaProveedor = (nombre) => {
+  proveedorActual = nombre;
+  document.getElementById('prov-vista-lista').style.display='none';
+  document.getElementById('prov-vista-ficha').style.display='block';
+  document.getElementById('ficha-nombre-title').textContent = nombre;
+  // Filtrar productos del proveedor
+  filtrarProductosFicha();
+  // Actualizar saldo
+  actualizarSaldoFicha();
+  // Render historial
+  renderFichaHistorial();
+  // Cargar datos del proveedor en form si existe en DB
+  const provData = proveedoresList.find(p=>p.nombre===nombre);
+  if(provData){
+    document.getElementById('np-id').value=provData.id||'';
+    document.getElementById('np-nombre').value=provData.nombre||'';
+    document.getElementById('np-contacto').value=provData.contacto||'';
+    document.getElementById('np-tel').value=provData.tel||'';
+    document.getElementById('np-email').value=provData.email||'';
+    document.getElementById('np-ig').value=provData.ig||'';
+    document.getElementById('np-dir').value=provData.dir||'';
+    document.getElementById('np-pct').value=provData.pct||40;
+    document.getElementById('np-notas').value=provData.notas||'';
+  } else {
+    ['np-id','np-nombre','np-contacto','np-tel','np-email','np-ig','np-dir','np-notas'].forEach(x=>{const el=document.getElementById(x);if(el)el.value='';});
+    document.getElementById('np-nombre').value=nombre;
+    document.getElementById('np-pct').value=40;
+  }
+  showFichaTab('pedido');
+};
+
+function actualizarSaldoFicha(){
+  if(!proveedorActual) return;
+  const totalPedidos = pedidos.filter(p=>p.proveedor===proveedorActual).reduce((a,p)=>a+(p.costoTotal||0),0);
+  const totalPagado = pagosProv.filter(p=>p.proveedor===proveedorActual).reduce((a,p)=>a+(p.monto||0),0);
+  const saldo = totalPedidos - totalPagado;
+  const color = saldo > 0 ? 'var(--red)' : 'var(--green)';
+  document.getElementById('ficha-saldo').textContent = fmt(saldo);
+  document.getElementById('ficha-saldo').style.color = color;
+  document.getElementById('ficha-saldo-card').style.borderLeftColor = color;
+  document.getElementById('ficha-total-pedidos').textContent = fmt(totalPedidos);
+  document.getElementById('ficha-total-pagado').textContent = fmt(totalPagado);
+}
+
+function filtrarProductosFicha(){
   const sel = document.getElementById('p-producto');
+  if(!sel) return;
   const curr=sel.value;
   sel.innerHTML = '<option value="">— Elegir —</option>';
-  stock.filter(p => !prov || p.proveedor === prov).forEach(p => {
+  stock.filter(p => !proveedorActual || p.proveedor === proveedorActual).forEach(p => {
     const o = document.createElement('option'); o.value=p.id; o.textContent=p.nombre; sel.appendChild(o);
   });
   if(curr) sel.value=curr;
   calcCostoPedido();
+}
+
+// --- Subtabs ficha ---
+window.showFichaTab = (tab) => {
+  document.querySelectorAll('.prov-section').forEach(s=>s.style.display='none');
+  document.getElementById('ftab-'+tab).style.display='block';
+  document.querySelectorAll('[id^="ftab-btn-"]').forEach(b=>{b.style.background='none';b.style.color='var(--dark)';b.style.border='1.5px solid var(--border)';});
+  const btn=document.getElementById('ftab-btn-'+tab);
+  if(btn){btn.style.background='var(--green)';btn.style.color='white';btn.style.border='none';}
+  if(tab==='historial') renderFichaHistorial();
 };
 
+function renderFichaHistorial(){
+  if(!proveedorActual) return;
+  // Pedidos
+  const tbody=document.getElementById('ficha-pedidos-body');
+  const misPedidos=pedidos.filter(p=>p.proveedor===proveedorActual);
+  if(!misPedidos.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Sin pedidos</td></tr>';}
+  else tbody.innerHTML=misPedidos.map(p=>`<tr>
+    <td style="font-size:11px;font-weight:600;color:var(--green)">${p.nroPedido||'—'}</td>
+    <td style="font-size:12px">${p.fecha}</td>
+    <td style="font-weight:500">${p.producto}</td>
+    <td style="text-align:center">${p.cantidad}</td>
+    <td style="font-weight:600">${fmt(p.costoTotal)}</td>
+    <td><span class="badge ${p.pago==='Juanma'?'badge-juanma':'badge-sofi'}">${p.pago}</span></td>
+  </tr>`).join('');
+  // Pagos
+  const tbody2=document.getElementById('ficha-pagos-body');
+  const misPagos=pagosProv.filter(p=>p.proveedor===proveedorActual);
+  if(!misPagos.length){tbody2.innerHTML='<tr><td colspan="4" class="empty-state">Sin pagos</td></tr>';}
+  else tbody2.innerHTML=misPagos.map(p=>`<tr>
+    <td style="font-size:12px">${p.fecha}</td>
+    <td style="font-weight:600;color:var(--green)">${fmt(p.monto)}</td>
+    <td><span class="badge ${p.quien==='Juanma'?'badge-juanma':'badge-sofi'}">${p.quien}</span></td>
+    <td style="font-size:12px;color:var(--light-green)">${p.nota||'—'}</td>
+  </tr>`).join('');
+}
+
+// --- Calcular costo pedido ---
 window.calcCostoPedido = () => {
   const prodId = document.getElementById('p-producto').value;
   const cantidad = parseInt(document.getElementById('p-cantidad').value) || 0;
@@ -766,7 +915,7 @@ function generarNroPedido(){
 }
 
 window.registrarPedido = async () => {
-  const proveedor = document.getElementById('p-proveedor').value;
+  const proveedor = proveedorActual;
   const prodId = document.getElementById('p-producto').value;
   const cantidad = parseInt(document.getElementById('p-cantidad').value);
   const deposito = document.getElementById('p-deposito').value;
@@ -790,7 +939,9 @@ window.registrarPedido = async () => {
     const now=new Date();
     const fechaHora=fecha+' '+now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
     await setDoc(doc(db,'pedidos',id),{id,nroPedido,fecha,fechaHora,proveedor,producto:prod?.nombre||'',prodId,cantidad,deposito,pago,costoTotal,pagado:0,timestamp:Date.now()});
-    ['p-proveedor','p-producto','p-deposito','p-pago'].forEach(x=>document.getElementById(x).value='');
+    document.getElementById('p-producto').value='';
+    document.getElementById('p-deposito').value='';
+    document.getElementById('p-pago').value='';
     document.getElementById('p-cantidad').value=1;
     document.getElementById('p-costo-wrap').style.display='none';
     const ok=document.getElementById('p-ok'); ok.style.display='block'; setTimeout(()=>ok.style.display='none',3000);
@@ -798,45 +949,53 @@ window.registrarPedido = async () => {
   btn.disabled=false; btn.innerHTML='📦 Confirmar pedido — suma al stock'; setLoading(false);
 };
 
-window.cargarPedidosPendientes = () => {
-  const prov=document.getElementById('pp-proveedor').value;
-  const sel=document.getElementById('pp-pedido');
-  sel.innerHTML='<option value="">— Pago general —</option>';
-  pedidos.filter(p=>p.proveedor===prov&&(p.costoTotal-(p.pagado||0))>0).forEach(p=>{
-    const o=document.createElement('option');
-    o.value=p.id;
-    o.textContent=`${p.nroPedido||p.id} — ${p.producto} — Saldo: ${fmt(p.costoTotal-(p.pagado||0))}`;
-    sel.appendChild(o);
-  });
-};
-
 window.registrarPagoProv = async () => {
-  const proveedor = document.getElementById('pp-proveedor').value;
+  const proveedor = proveedorActual;
   const monto = parseFloat(document.getElementById('pp-monto').value);
   const fecha = document.getElementById('pp-fecha').value;
   const quien = document.getElementById('pp-quien').value;
   const nota = document.getElementById('pp-nota').value;
-  const pedidoId = document.getElementById('pp-pedido').value;
   if(!proveedor||!monto||!fecha||!quien){return;}
   const btn=document.getElementById('btn-pago-prov');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Guardando...'; setLoading(true);
   try {
     const id=Date.now().toString();
-    await setDoc(doc(db,'pagosProv',id),{id,fecha,proveedor,monto,quien,nota,pedidoId,timestamp:Date.now()});
-    // Update pagado on pedido
-    if(pedidoId){
-      const ped=pedidos.find(p=>p.id===pedidoId);
-      if(ped) await setDoc(doc(db,'pedidos',pedidoId),{...ped,pagado:(ped.pagado||0)+monto});
-    }
-    ['pp-proveedor','pp-quien','pp-pedido'].forEach(x=>document.getElementById(x).value='');
-    ['pp-monto','pp-nota'].forEach(x=>document.getElementById(x).value='');
+    await setDoc(doc(db,'pagosProv',id),{id,fecha,proveedor,monto,quien,nota,timestamp:Date.now()});
+    document.getElementById('pp-quien').value='';
+    document.getElementById('pp-monto').value='';
+    document.getElementById('pp-nota').value='';
     const ok=document.getElementById('pp-ok'); ok.style.display='block'; setTimeout(()=>ok.style.display='none',2000);
+    actualizarSaldoFicha();
   } catch(e){alert('Error: '+e.message);}
   btn.disabled=false; btn.innerHTML='💸 Registrar pago'; setLoading(false);
 };
 
-// --- Guardar proveedor ---
-window.guardarProveedor = async () => {
+// --- Guardar nuevo proveedor (desde lista) ---
+window.guardarNuevoProveedor = async () => {
+  const nombre=document.getElementById('ln-nombre').value.trim();
+  if(!nombre) return;
+  const btn=document.getElementById('btn-ln');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Guardando...';
+  try {
+    const id=Date.now().toString();
+    await setDoc(doc(db,'proveedores',id),{
+      id,nombre,
+      contacto:document.getElementById('ln-contacto').value,
+      tel:document.getElementById('ln-tel').value,
+      email:document.getElementById('ln-email').value,
+      ig:document.getElementById('ln-ig').value,
+      dir:document.getElementById('ln-dir').value,
+      pct:parseFloat(document.getElementById('ln-pct').value)||40,
+      notas:document.getElementById('ln-notas').value,
+      timestamp:Date.now()
+    });
+    ['ln-nombre','ln-contacto','ln-tel','ln-email','ln-ig','ln-dir','ln-notas'].forEach(x=>document.getElementById(x).value='');
+    document.getElementById('ln-pct').value=40;
+    document.getElementById('prov-form-nuevo').style.display='none';
+    const ok=document.getElementById('ln-ok'); ok.style.display='block'; setTimeout(()=>ok.style.display='none',2000);
+  } catch(e){alert('Error: '+e.message);}
+  btn.disabled=false; btn.innerHTML='+ Guardar proveedor';
+};
   const nombre=document.getElementById('np-nombre').value.trim();
   if(!nombre) return;
   const id=document.getElementById('np-id').value||Date.now().toString();
@@ -854,41 +1013,29 @@ window.guardarProveedor = async () => {
       notas:document.getElementById('np-notas').value,
       timestamp:Date.now()
     });
-    ['np-nombre','np-contacto','np-tel','np-email','np-ig','np-dir','np-notas','np-id'].forEach(x=>document.getElementById(x).value='');
-    document.getElementById('np-pct').value=40;
+    // Si estamos en la vista lista, ocultar form
+    if(document.getElementById('prov-form-nuevo').style.display!=='none'){
+      document.getElementById('prov-form-nuevo').style.display='none';
+    }
     const ok=document.getElementById('np-ok'); ok.style.display='block'; setTimeout(()=>ok.style.display='none',2000);
   } catch(e){alert('Error: '+e.message);}
-  btn.disabled=false; btn.innerHTML='+ Guardar proveedor';
+  btn.disabled=false; btn.innerHTML= proveedorActual ? '💾 Actualizar proveedor' : '+ Guardar proveedor';
 };
 
-window.showModalProveedor = () => {
-  document.getElementById('modal-prov').style.display='flex';
-  document.getElementById('mp-nombre').focus();
-};
-
-window.guardarProveedorRapido = async () => {
-  const nombre=document.getElementById('mp-nombre').value.trim();
-  if(!nombre) return;
-  const pct=parseFloat(document.getElementById('mp-pct').value)||40;
-  const id=Date.now().toString();
-  await setDoc(doc(db,'proveedores',id),{id,nombre,pct,timestamp:Date.now()});
-  // Agregar inmediatamente a proveedoresList local para no depender del onSnapshot
-  if(!proveedoresList.find(p=>p.nombre===nombre)){
-    proveedoresList.push({id,nombre,pct,timestamp:Date.now()});
-    proveedoresList.sort((a,b)=>a.nombre.localeCompare(b.nombre));
+// --- Eliminar proveedor ---
+window.eliminarProveedorActual = async () => {
+  if(!proveedorActual) return;
+  if(PROVS_HARDCODED.includes(proveedorActual)){alert('No podés eliminar los proveedores principales.');return;}
+  if(!confirm(`¿Eliminar a ${proveedorActual}? Los pedidos y pagos registrados se conservan.`)) return;
+  const provData=proveedoresList.find(p=>p.nombre===proveedorActual);
+  if(provData){
+    await deleteDoc(doc(db,'proveedores',provData.id));
   }
-  fillProveedorSelects();
-  document.getElementById('mp-nombre').value='';
-  document.getElementById('mp-pct').value=40;
-  document.getElementById('modal-prov').style.display='none';
-  // Seleccionar el nuevo proveedor
-  const sel=document.getElementById('p-proveedor');
-  if(sel){sel.value=nombre; filtrarProductosProv();}
+  volverALista();
 };
 
 window.showModalProductoRapido = () => {
-  const prov=document.getElementById('p-proveedor').value;
-  if(document.getElementById('mpr-prov')) document.getElementById('mpr-prov').value=prov;
+  if(document.getElementById('mpr-prov')) document.getElementById('mpr-prov').value=proveedorActual||'';
   document.getElementById('modal-prod').style.display='flex';
   document.getElementById('mpr-nombre').focus();
 };
@@ -905,7 +1052,7 @@ window.guardarProductoRapido = async () => {
   const nombre=document.getElementById('mpr-nombre').value.trim();
   const precio=parseFloat(document.getElementById('mpr-precio').value)||0;
   const costo=parseFloat(document.getElementById('mpr-costo').value)||0;
-  const proveedor=document.getElementById('mpr-prov')?.value||'';
+  const proveedor=document.getElementById('mpr-prov')?.value||proveedorActual||'';
   if(!nombre) return;
   const id=Date.now().toString();
   await setDoc(doc(db,'stock',id),{id,nombre,proveedor,precio,costo,juanma:0,sofi:0,alerta:0,pct:40,timestamp:Date.now()});
@@ -914,7 +1061,7 @@ window.guardarProductoRapido = async () => {
   document.getElementById('mpr-costo').value='';
   document.getElementById('modal-prod').style.display='none';
   setTimeout(()=>{
-    filtrarProductosProv();
+    filtrarProductosFicha();
     const sel=document.getElementById('p-producto');
     const opt=[...sel.options].find(o=>o.textContent===nombre);
     if(opt) sel.value=opt.value;
@@ -922,89 +1069,8 @@ window.guardarProductoRapido = async () => {
   },500);
 };
 
-function renderProveedoresResumen(){
-  const cont = document.getElementById('proveedores-resumen');
-  if(!cont) return;
-  const allProvs = [...new Set([...proveedoresList.map(p=>p.nombre),'Cultivamente','Yuyos de la Meme'])];
-  const conMovimientos = allProvs.filter(prov=>pedidos.some(p=>p.proveedor===prov));
-  if(!conMovimientos.length){cont.innerHTML='';return;}
-  cont.innerHTML = conMovimientos.map(prov => {
-    const totalPedidos = pedidos.filter(p=>p.proveedor===prov).reduce((a,p)=>a+(p.costoTotal||0),0);
-    const totalPagado = pagosProv.filter(p=>p.proveedor===prov).reduce((a,p)=>a+(p.monto||0),0);
-    const deuda = totalPedidos - totalPagado;
-    return `<div class="card" style="border-left:4px solid ${deuda>0?'var(--red)':'var(--green)'}">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <div>
-          <div style="font-family:'DM Serif Display',serif;font-size:15px">${prov}</div>
-          <div style="font-size:12px;color:var(--light-green);margin-top:4px">Pedidos: ${fmt(totalPedidos)} | Pagado: ${fmt(totalPagado)}</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--light-green)">Saldo pendiente</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:24px;color:${deuda>0?'var(--red)':'var(--green)'}">${fmt(deuda)}</div>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function renderPedidos(){
-  const tbody=document.getElementById('pedidos-body');
-  if(!tbody) return;
-  if(!pedidos.length){tbody.innerHTML='<tr><td colspan="9" class="empty-state">Sin pedidos</td></tr>';return;}
-  tbody.innerHTML=pedidos.map(p=>{
-    const saldo=(p.costoTotal||0)-(p.pagado||0);
-    return `<tr>
-      <td style="font-size:11px;font-weight:600;color:var(--green)">${p.nroPedido||'—'}</td>
-      <td style="font-size:12px">${p.fecha}</td>
-      <td style="font-size:12px;color:var(--light-green)">${p.proveedor}</td>
-      <td style="font-weight:500">${p.producto}</td>
-      <td style="text-align:center">${p.cantidad}</td>
-      <td style="font-weight:600">${fmt(p.costoTotal)}</td>
-      <td style="color:var(--green)">${fmt(p.pagado||0)}</td>
-      <td style="color:${saldo>0?'var(--red)':'var(--green)'};font-weight:600">${fmt(saldo)}</td>
-      <td><span class="badge ${p.pago==='Juanma'?'badge-juanma':'badge-sofi'}">${p.pago}</span></td>
-    </tr>`;
-  }).join('');
-}
-
-function renderListaProveedores(){
-  const cont=document.getElementById('lista-proveedores');
-  if(!cont||!proveedoresList.length) return;
-  cont.innerHTML=proveedoresList.map(p=>`
-    <div class="card" style="margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
-        <div>
-          <div style="font-weight:600;font-size:15px">${p.nombre}</div>
-          ${p.contacto?`<div style="font-size:13px;color:var(--light-green);margin-top:4px">👤 ${p.contacto}</div>`:''}
-          ${p.tel?`<div style="font-size:13px;color:var(--light-green)">📱 ${p.tel}</div>`:''}
-          ${p.ig?`<div style="font-size:13px;color:var(--light-green)">📸 ${p.ig}</div>`:''}
-          ${p.email?`<div style="font-size:13px;color:var(--light-green)">✉️ ${p.email}</div>`:''}
-          ${p.dir?`<div style="font-size:13px;color:var(--light-green)">📍 ${p.dir}</div>`:''}
-          ${p.notas?`<div style="font-size:12px;color:var(--border);margin-top:4px">${p.notas}</div>`:''}
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:11px;color:var(--light-green)">% costo</div>
-          <div style="font-weight:700;color:var(--green)">${p.pct||40}%</div>
-          <button class="btn-sm" style="margin-top:8px" onclick="editarProveedor('${p.id}')">Editar</button>
-        </div>
-      </div>
-    </div>`).join('');
-}
-
-window.editarProveedor = id => {
-  const p=proveedoresList.find(x=>x.id===id); if(!p) return;
-  document.getElementById('np-id').value=p.id;
-  document.getElementById('np-nombre').value=p.nombre||'';
-  document.getElementById('np-contacto').value=p.contacto||'';
-  document.getElementById('np-tel').value=p.tel||'';
-  document.getElementById('np-email').value=p.email||'';
-  document.getElementById('np-ig').value=p.ig||'';
-  document.getElementById('np-dir').value=p.dir||'';
-  document.getElementById('np-pct').value=p.pct||40;
-  document.getElementById('np-notas').value=p.notas||'';
-  document.getElementById('btn-np').innerHTML='💾 Actualizar proveedor';
-  window.scrollTo(0,0);
-};
+function renderProveedoresResumen(){ /* legacy */ }
+function renderPedidos(){ /* legacy */ }
 
 // ===== REPONER =====
 let reposiciones = [];
