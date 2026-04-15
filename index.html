@@ -996,6 +996,9 @@ window.guardarNuevoProveedor = async () => {
   } catch(e){alert('Error: '+e.message);}
   btn.disabled=false; btn.innerHTML='+ Guardar proveedor';
 };
+
+// --- Guardar proveedor (desde ficha datos) ---
+window.guardarProveedor = async () => {
   const nombre=document.getElementById('np-nombre').value.trim();
   if(!nombre) return;
   const id=document.getElementById('np-id').value||Date.now().toString();
