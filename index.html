@@ -234,7 +234,7 @@
         <div class="field">
           <label>Proveedor</label>
           <div style="display:flex;gap:8px">
-            <select id="p-proveedor" onchange="filtrarProductosProv()" style="flex:1"></select>
+            <select id="p-proveedor" onchange="filtrarProductosProv()" style="flex:1"><option value="">— Elegir —</option></select>
             <button class="btn-sm" onclick="showModalProveedor()" title="Agregar proveedor">+</button>
           </div>
         </div>
@@ -873,14 +873,18 @@ window.guardarProveedorRapido = async () => {
   const pct=parseFloat(document.getElementById('mp-pct').value)||40;
   const id=Date.now().toString();
   await setDoc(doc(db,'proveedores',id),{id,nombre,pct,timestamp:Date.now()});
+  // Agregar inmediatamente a proveedoresList local para no depender del onSnapshot
+  if(!proveedoresList.find(p=>p.nombre===nombre)){
+    proveedoresList.push({id,nombre,pct,timestamp:Date.now()});
+    proveedoresList.sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  }
+  fillProveedorSelects();
   document.getElementById('mp-nombre').value='';
   document.getElementById('mp-pct').value=40;
   document.getElementById('modal-prov').style.display='none';
-  // Select new proveedor
-  setTimeout(()=>{
-    const sel=document.getElementById('p-proveedor');
-    if(sel){sel.value=nombre; filtrarProductosProv();}
-  },500);
+  // Seleccionar el nuevo proveedor
+  const sel=document.getElementById('p-proveedor');
+  if(sel){sel.value=nombre; filtrarProductosProv();}
 };
 
 window.showModalProductoRapido = () => {
