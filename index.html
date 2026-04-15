@@ -384,6 +384,7 @@ const setLoading = show => {
 };
 
 async function init() {
+  fillProveedorSelects(); // poblar inmediatamente con hardcodeados sin esperar Firestore
   try {
     const snap = await getDocs(collection(db,'stock'));
     if(snap.empty) for(const p of PRODUCTOS_INICIALES) await setDoc(doc(db,'stock',p.id),p);
