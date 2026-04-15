@@ -388,11 +388,9 @@ async function init() {
   try {
     const snap = await getDocs(collection(db,'stock'));
     if(snap.empty) for(const p of PRODUCTOS_INICIALES) await setDoc(doc(db,'stock',p.id),p);
-    document.getElementById('conn-status').textContent = '● Online';
-    document.getElementById('conn-status').style.color = '#8AAA8A';
+    const cs=document.getElementById('conn-status'); if(cs){cs.textContent='● Online';cs.style.color='#8AAA8A';}
   } catch(e) {
-    document.getElementById('conn-status').textContent = '● Sin conexión';
-    document.getElementById('conn-status').style.color = '#C0392B';
+    const cs=document.getElementById('conn-status'); if(cs){cs.textContent='● Sin conexión';cs.style.color='#C0392B';}
   }
   onSnapshot(collection(db,'stock'), snap => {
     stock = snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>a.nombre.localeCompare(b.nombre));
