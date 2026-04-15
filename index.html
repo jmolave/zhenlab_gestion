@@ -271,6 +271,7 @@
     <!-- Subtabs ficha -->
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <button class="btn" id="ftab-btn-pedido" onclick="showFichaTab('pedido')" style="background:var(--green);color:white;padding:8px 16px;font-size:13px">📦 Nuevo pedido</button>
+      <button class="btn" id="ftab-btn-deuda" onclick="showFichaTab('deuda')" style="background:none;border:1.5px solid var(--border);color:var(--dark);padding:8px 16px;font-size:13px">📝 Registrar deuda</button>
       <button class="btn" id="ftab-btn-pago" onclick="showFichaTab('pago')" style="background:none;border:1.5px solid var(--border);color:var(--dark);padding:8px 16px;font-size:13px">💸 Registrar pago</button>
       <button class="btn" id="ftab-btn-historial" onclick="showFichaTab('historial')" style="background:none;border:1.5px solid var(--border);color:var(--dark);padding:8px 16px;font-size:13px">📋 Historial</button>
       <button class="btn" id="ftab-btn-datos" onclick="showFichaTab('datos')" style="background:none;border:1.5px solid var(--border);color:var(--dark);padding:8px 16px;font-size:13px">✏️ Datos</button>
@@ -305,6 +306,41 @@
       </div>
     </div>
 
+    <!-- Registrar deuda -->
+    <div id="ftab-deuda" class="prov-section" style="display:none">
+      <div class="card">
+        <div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px">
+          ⚠️ Esto solo actualiza la cuenta corriente. <strong>No modifica el stock.</strong> Si también querés sumar al stock, <a href="#" onclick="showFichaTab('pedido');return false;" style="color:var(--green);font-weight:600">registrá un pedido</a>.
+        </div>
+        <div class="form-grid">
+          <div class="field"><label>Fecha</label><input type="date" id="rd-fecha"></div>
+          <div class="field"><label>Tipo</label>
+            <select id="rd-tipo" onchange="toggleRdTipo()">
+              <option value="Consignacion">Consignación (suma deuda)</option>
+              <option value="Juanma">Pagué yo (Juanma)</option>
+              <option value="Sofi">Pagó Sofi</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin:16px 0 8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--light-green);font-weight:600">Ítems</div>
+            <button class="btn-sm" onclick="agregarItemDeuda()">+ Agregar ítem</button>
+          </div>
+          <div id="rd-items-container">
+            <!-- ítems dinámicos -->
+          </div>
+        </div>
+        <div style="background:var(--cream);border:1.5px solid var(--border);border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-size:13px;color:var(--light-green)">Total</span>
+          <span id="rd-total" style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--green)">$0</span>
+        </div>
+        <div class="alert" id="rd-alert">⚠️ Completá fecha y al menos un ítem.</div>
+        <button class="btn btn-primary" id="btn-rd" onclick="confirmarDeuda()">📝 Confirmar deuda</button>
+        <div class="success-msg" id="rd-ok">✓ Deuda registrada</div>
+      </div>
+    </div>
+
     <!-- Registrar pago -->
     <div id="ftab-pago" class="prov-section" style="display:none">
       <div class="card">
@@ -323,8 +359,12 @@
     <!-- Historial -->
     <div id="ftab-historial" class="prov-section" style="display:none">
       <div class="card">
-        <div class="card-title">Pedidos</div>
+        <div class="card-title">Pedidos (con stock)</div>
         <div class="table-wrap"><table><thead><tr><th>#</th><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Costo</th><th>Pagó</th></tr></thead><tbody id="ficha-pedidos-body"><tr><td colspan="6" class="empty-state">Sin pedidos</td></tr></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Deudas registradas</div>
+        <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Ítems</th><th>Total</th><th>Tipo</th></tr></thead><tbody id="ficha-deudas-body"><tr><td colspan="4" class="empty-state">Sin deudas registradas</td></tr></tbody></table></div>
       </div>
       <div class="card">
         <div class="card-title">Pagos</div>
@@ -451,6 +491,11 @@ async function init() {
   });
   onSnapshot(query(collection(db,'pagosProv'),orderBy('timestamp','desc')), snap => {
     pagosProv = snap.docs.map(d=>({...d.data(),id:d.id}));
+    renderListaProveedores();
+    if(proveedorActual){ actualizarSaldoFicha(); renderFichaHistorial(); }
+  });
+  onSnapshot(query(collection(db,'deudasProv'),orderBy('timestamp','desc')), snap => {
+    deudasProv = snap.docs.map(d=>({...d.data(),id:d.id}));
     renderListaProveedores();
     if(proveedorActual){ actualizarSaldoFicha(); renderFichaHistorial(); }
   });
@@ -738,7 +783,7 @@ function checkAlertas() {
 }
 
 // ===== PROVEEDORES =====
-let pedidos = [], pagosProv = [], proveedoresList = [];
+let pedidos = [], pagosProv = [], proveedoresList = [], deudasProv = [];
 let proveedorActual = null; // proveedor abierto en ficha
 
 // Proveedores hardcodeados que siempre existen aunque no estén en Firestore
@@ -782,8 +827,9 @@ function renderListaProveedores(){
   if(!names.length){cont.innerHTML='<div class="empty-state">Sin proveedores</div>';return;}
   cont.innerHTML = names.map(nombre => {
     const totalPedidos = pedidos.filter(p=>p.proveedor===nombre).reduce((a,p)=>a+(p.costoTotal||0),0);
+    const totalDeudas = deudasProv.filter(d=>d.proveedor===nombre).reduce((a,d)=>a+(d.total||0),0);
     const totalPagado = pagosProv.filter(p=>p.proveedor===nombre).reduce((a,p)=>a+(p.monto||0),0);
-    const saldo = totalPedidos - totalPagado;
+    const saldo = totalPedidos + totalDeudas - totalPagado;
     const color = saldo > 0 ? 'var(--red)' : 'var(--green)';
     return `<div class="card" style="cursor:pointer;border-left:4px solid ${color};margin-bottom:12px;transition:box-shadow 0.15s" onclick="abrirFichaProveedor('${nombre}')" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow='none'">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -835,13 +881,14 @@ window.abrirFichaProveedor = (nombre) => {
 function actualizarSaldoFicha(){
   if(!proveedorActual) return;
   const totalPedidos = pedidos.filter(p=>p.proveedor===proveedorActual).reduce((a,p)=>a+(p.costoTotal||0),0);
+  const totalDeudas = deudasProv.filter(d=>d.proveedor===proveedorActual).reduce((a,d)=>a+(d.total||0),0);
   const totalPagado = pagosProv.filter(p=>p.proveedor===proveedorActual).reduce((a,p)=>a+(p.monto||0),0);
-  const saldo = totalPedidos - totalPagado;
+  const saldo = totalPedidos + totalDeudas - totalPagado;
   const color = saldo > 0 ? 'var(--red)' : 'var(--green)';
   document.getElementById('ficha-saldo').textContent = fmt(saldo);
   document.getElementById('ficha-saldo').style.color = color;
   document.getElementById('ficha-saldo-card').style.borderLeftColor = color;
-  document.getElementById('ficha-total-pedidos').textContent = fmt(totalPedidos);
+  document.getElementById('ficha-total-pedidos').textContent = fmt(totalPedidos + totalDeudas);
   document.getElementById('ficha-total-pagado').textContent = fmt(totalPagado);
 }
 
@@ -865,6 +912,14 @@ window.showFichaTab = (tab) => {
   const btn=document.getElementById('ftab-btn-'+tab);
   if(btn){btn.style.background='var(--green)';btn.style.color='white';btn.style.border='none';}
   if(tab==='historial') renderFichaHistorial();
+  if(tab==='deuda'){
+    // inicializar con un ítem si está vacío
+    if(!document.querySelectorAll('[id^="rd-item-"]').length){ rdItems=[]; agregarItemDeuda(); }
+    // fecha de hoy por defecto
+    if(!document.getElementById('rd-fecha').value){
+      const hoy=new Date(); document.getElementById('rd-fecha').value=hoy.toISOString().split('T')[0];
+    }
+  }
 };
 
 function renderFichaHistorial(){
@@ -881,6 +936,16 @@ function renderFichaHistorial(){
     <td style="font-weight:600">${fmt(p.costoTotal)}</td>
     <td><span class="badge ${p.pago==='Juanma'?'badge-juanma':'badge-sofi'}">${p.pago}</span></td>
   </tr>`).join('');
+  // Deudas
+  const tbody3=document.getElementById('ficha-deudas-body');
+  const misDeudas=deudasProv.filter(d=>d.proveedor===proveedorActual);
+  if(!misDeudas.length){tbody3.innerHTML='<tr><td colspan="4" class="empty-state">Sin deudas registradas</td></tr>';}
+  else tbody3.innerHTML=misDeudas.map(d=>`<tr>
+    <td style="font-size:12px">${d.fecha}</td>
+    <td style="font-size:12px;color:var(--light-green)">${(d.items||[]).map(i=>i.nombre+' x'+i.cantidad).join(', ')}</td>
+    <td style="font-weight:600;color:var(--red)">${fmt(d.total)}</td>
+    <td><span class="badge ${d.tipo==='Consignacion'?'badge-consig':(d.tipo==='Juanma'?'badge-juanma':'badge-sofi')}">${d.tipo==='Consignacion'?'Consignación':d.tipo}</span></td>
+  </tr>`).join('');
   // Pagos
   const tbody2=document.getElementById('ficha-pagos-body');
   const misPagos=pagosProv.filter(p=>p.proveedor===proveedorActual);
@@ -892,6 +957,99 @@ function renderFichaHistorial(){
     <td style="font-size:12px;color:var(--light-green)">${p.nota||'—'}</td>
   </tr>`).join('');
 }
+
+// ===== REGISTRAR DEUDA =====
+let rdItems = [];
+
+function rdItemHTML(idx, prod){
+  const opts = stock.filter(p=>!proveedorActual||p.proveedor===proveedorActual)
+    .map(p=>`<option value="${p.id}" ${prod&&prod.id===p.id?'selected':''}>${p.nombre}</option>`).join('');
+  return `<div id="rd-item-${idx}" style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;margin-bottom:8px">
+    <div style="display:flex;gap:4px">
+      <select onchange="recalcRdTotal()" id="rd-prod-${idx}" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--cream)">
+        <option value="">— Producto —</option>${opts}
+        <option value="__nuevo__">+ Agregar nuevo...</option>
+      </select>
+    </div>
+    <input type="number" id="rd-cant-${idx}" placeholder="Cant." min="1" value="1" oninput="recalcRdTotal()" style="width:70px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--cream)">
+    <input type="number" id="rd-costo-${idx}" placeholder="Costo unit." oninput="recalcRdTotal()" style="width:110px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--cream)">
+    <button onclick="quitarItemDeuda(${idx})" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px">✕</button>
+  </div>`;
+}
+
+window.agregarItemDeuda = () => {
+  const idx = rdItems.length;
+  rdItems.push(idx);
+  const cont = document.getElementById('rd-items-container');
+  const div = document.createElement('div');
+  div.innerHTML = rdItemHTML(idx);
+  cont.appendChild(div.firstChild||div);
+  // listener para producto nuevo
+  document.getElementById(`rd-prod-${idx}`).addEventListener('change', function(){
+    if(this.value==='__nuevo__'){ this.value=''; showModalProductoRapido(); }
+    else { autoFillRdCosto(idx); recalcRdTotal(); }
+  });
+};
+
+window.quitarItemDeuda = (idx) => {
+  const el=document.getElementById(`rd-item-${idx}`);
+  if(el) el.remove();
+  recalcRdTotal();
+};
+
+function autoFillRdCosto(idx){
+  const sel=document.getElementById(`rd-prod-${idx}`);
+  const prod=stock.find(x=>x.id===sel?.value);
+  if(prod) document.getElementById(`rd-costo-${idx}`).value=prod.costo||0;
+}
+
+window.recalcRdTotal = () => {
+  let total=0;
+  document.querySelectorAll('[id^="rd-item-"]').forEach(row=>{
+    const idx=row.id.replace('rd-item-','');
+    const cant=parseFloat(document.getElementById(`rd-cant-${idx}`)?.value)||0;
+    const costo=parseFloat(document.getElementById(`rd-costo-${idx}`)?.value)||0;
+    total+=cant*costo;
+  });
+  document.getElementById('rd-total').textContent=fmt(total);
+};
+
+window.confirmarDeuda = async () => {
+  const fecha=document.getElementById('rd-fecha').value;
+  const tipo=document.getElementById('rd-tipo').value;
+  if(!fecha||!proveedorActual){document.getElementById('rd-alert').style.display='block';return;}
+  // recolectar items
+  const items=[];
+  let total=0;
+  let valido=false;
+  document.querySelectorAll('[id^="rd-item-"]').forEach(row=>{
+    const idx=row.id.replace('rd-item-','');
+    const sel=document.getElementById(`rd-prod-${idx}`);
+    const cant=parseFloat(document.getElementById(`rd-cant-${idx}`)?.value)||0;
+    const costo=parseFloat(document.getElementById(`rd-costo-${idx}`)?.value)||0;
+    if(cant&&costo){
+      const prod=stock.find(x=>x.id===sel?.value);
+      items.push({prodId:sel?.value||'',nombre:prod?.nombre||'Producto',cantidad:cant,costoUnit:costo,subtotal:cant*costo});
+      total+=cant*costo; valido=true;
+    }
+  });
+  if(!valido){document.getElementById('rd-alert').style.display='block';return;}
+  document.getElementById('rd-alert').style.display='none';
+  const btn=document.getElementById('btn-rd');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Guardando...'; setLoading(true);
+  try {
+    const id=Date.now().toString();
+    await setDoc(doc(db,'deudasProv',id),{id,fecha,proveedor:proveedorActual,tipo,items,total,timestamp:Date.now()});
+    // limpiar
+    document.getElementById('rd-items-container').innerHTML='';
+    rdItems=[];
+    document.getElementById('rd-fecha').value='';
+    document.getElementById('rd-total').textContent='$0';
+    const ok=document.getElementById('rd-ok'); ok.style.display='block'; setTimeout(()=>ok.style.display='none',3000);
+    actualizarSaldoFicha();
+  } catch(e){alert('Error: '+e.message);}
+  btn.disabled=false; btn.innerHTML='📝 Confirmar deuda'; setLoading(false);
+};
 
 // --- Calcular costo pedido ---
 window.calcCostoPedido = () => {
