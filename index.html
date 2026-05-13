@@ -46,7 +46,9 @@
   .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
   .badge-juanma { background:#E8F4E8; color:var(--green); }
   .badge-sofi { background:#FEF3C7; color:#92400E; }
+  .badge-tn { background:#EFF6FF; color:#1D4ED8; }
   .badge-consig { background:#FEE2E2; color:var(--red); }
+  .badge-ajuste { background:#F3E8FF; color:#7C3AED; }
   .badge-efec { background:#E8F4E8; color:var(--green); }
   .badge-trans { background:#EFF6FF; color:#1D4ED8; }
   .stock-bar-wrap { display:flex; gap:4px; align-items:center; }
@@ -115,6 +117,7 @@
   <button class="tab" onclick="showTab('transferir',this)">🔄 Transferir</button>
   <button class="tab" onclick="showTab('proveedores',this)">🏭 Proveedores</button>
   <button class="tab" onclick="showTab('ventas',this)">📋 Ventas</button>
+  <button class="tab admin-only" id="tab-btn-ajustes" onclick="showTab('ajustes',this)" style="display:none">⚙️ Ajustes</button>
   <button class="tab" onclick="showTab('resumen',this)">📊 Resumen</button>
 </div>
 <div id="alertas-container" style="max-width:900px;margin:12px auto 0;padding:0 24px"></div>
@@ -129,7 +132,7 @@
       <div class="field span2"><label>Producto</label><select id="v-producto" onchange="autoFillPrecio()"><option value="">— Elegir producto —</option></select></div>
       <div class="field"><label>Cantidad</label><input type="number" id="v-cantidad" min="1" value="1" oninput="calcTotal()"></div>
       <div class="field"><label>Precio unit.</label><input type="number" id="v-precio" oninput="calcTotal()"></div>
-      <div class="field"><label>Forma de cobro</label><select id="v-cobro"><option value="">— Elegir —</option><option value="Efectivo">Efectivo</option><option value="Transferencia">Transferencia</option><option value="Consignación">Consignación</option></select></div>
+      <div class="field"><label>Forma de cobro</label><select id="v-cobro" onchange="ajustarPrecioVenta()"><option value="">— Elegir —</option><option value="Efectivo">Efectivo</option><option value="Transferencia">Transferencia</option><option value="Consignación">Consignación</option></select></div>
       <div class="field"><label>Total</label><input type="text" id="v-total" readonly style="font-weight:700;color:var(--green);"></div>
       <div class="field span2"><label>Cliente (opcional)</label><input type="text" id="v-cliente" placeholder="Nombre o descripción"></div>
     </div>
@@ -157,6 +160,7 @@
       </div>
       <div class="field"><label>Stock Juanma</label><input type="number" id="s-juanma" placeholder="0" min="0"></div>
       <div class="field"><label>Stock Sofi</label><input type="number" id="s-sofi" placeholder="0" min="0"></div>
+      <div class="field"><label>Stock Tienda Nube</label><input type="number" id="s-tn" placeholder="0" min="0"></div>
       <div class="field" id="campo-alerta">
         <label>Alerta stock mínimo</label>
         <input type="number" id="s-alerta" placeholder="0 = sin alerta" min="0">
@@ -167,7 +171,7 @@
   </div>
   <div class="card">
     <div class="card-title">Productos en stock</div>
-    <div class="table-wrap"><table><thead><tr><th>Producto</th><th>Proveedor</th><th>Precio</th><th>Costo</th><th>Juanma</th><th>Sofi</th><th>Total</th><th></th></tr></thead><tbody id="stock-body"><tr><td colspan="8" class="empty-state">Cargando...</td></tr></tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>Producto</th><th>Proveedor</th><th>Precio</th><th>Costo</th><th>Juanma</th><th>Sofi</th><th>TN</th><th>Total</th><th></th></tr></thead><tbody id="stock-body"><tr><td colspan="9" class="empty-state">Cargando...</td></tr></tbody></table></div>
   </div>
 </div>
 
@@ -179,7 +183,7 @@
       <div class="field"><label>Proveedor</label><select id="r-proveedor" onchange="filtrarProductosReponer()"><option value="">— Elegir —</option><option value="Cultivamente">Cultivamente</option><option value="Yuyos de la Meme">Yuyos de la Meme</option></select></div>
       <div class="field"><label>Producto</label><select id="r-producto"><option value="">— Elegir producto —</option></select></div>
       <div class="field"><label>Cantidad</label><input type="number" id="r-cantidad" min="1" value="1"></div>
-      <div class="field"><label>Depósito destino</label><select id="r-deposito"><option value="">— Elegir —</option><option value="juanma">Juanma</option><option value="sofi">Sofi</option></select></div>
+      <div class="field"><label>Depósito destino</label><select id="r-deposito"><option value="">— Elegir —</option><option value="juanma">Juanma</option><option value="sofi">Sofi</option><option value="tn">Tienda Nube</option></select></div>
       <div class="field"><label>N° pedido / referencia</label><input type="text" id="r-referencia" placeholder="Ej: PED-001 o número de factura"></div>
       <div class="field"><label>Fecha</label><input type="date" id="r-fecha"></div>
     </div>
@@ -199,7 +203,8 @@
     <div class="form-grid">
       <div class="field span2"><label>Producto</label><select id="t-producto" onchange="mostrarStockActual()"><option value="">— Elegir producto —</option></select></div>
       <div class="field"><label>Cantidad</label><input type="number" id="t-cantidad" min="1" value="1"></div>
-      <div class="field"><label>Dirección</label><select id="t-direccion"><option value="juanma-sofi">Juanma → Sofi</option><option value="sofi-juanma">Sofi → Juanma</option></select></div>
+      <div class="field"><label>Desde</label><select id="t-origen" onchange="mostrarStockActual()"><option value="juanma">Juanma</option><option value="sofi">Sofi</option><option value="tn">Tienda Nube</option></select></div>
+      <div class="field"><label>Hacia</label><select id="t-destino"><option value="sofi">Sofi</option><option value="juanma">Juanma</option><option value="tn">Tienda Nube</option></select></div>
       <div class="field span2"><label>Stock actual</label><div id="t-stock-actual" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;background:var(--cream);font-size:14px;color:var(--light-green)">Elegí un producto para ver el stock</div></div>
     </div>
     <div class="alert" id="t-alert">⚠️ Completá todos los campos.</div>
@@ -290,7 +295,7 @@
             </div>
           </div>
           <div class="field"><label>Cantidad</label><input type="number" id="p-cantidad" min="1" value="1" oninput="calcCostoPedido()"></div>
-          <div class="field"><label>Depósito destino</label><select id="p-deposito"><option value="">— Elegir —</option><option value="juanma">Juanma</option><option value="sofi">Sofi</option></select></div>
+          <div class="field"><label>Depósito destino</label><select id="p-deposito"><option value="">— Elegir —</option><option value="juanma">Juanma</option><option value="sofi">Sofi</option><option value="tn">Tienda Nube</option></select></div>
           <div class="field"><label>Pagó</label><select id="p-pago"><option value="">— Elegir —</option><option value="Juanma">Juanma</option><option value="Sofi">Sofi</option><option value="Ambos">Ambos</option></select></div>
           <div class="field"><label>Fecha</label><input type="date" id="p-fecha"></div>
           <div class="field span2" id="p-costo-wrap" style="display:none">
@@ -412,6 +417,38 @@
   </div>
 </div>
 
+<div id="tab-ajustes" class="page">
+  <div class="card">
+    <div class="card-title">⚙️ Historial de ajustes manuales</div>
+    <div style="background:#F3E8FF;border:1px solid #7C3AED;border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:12px;color:#5B21B6">
+      Los ajustes manuales se crean desde el botón <strong>Ajustar</strong> en cada producto de la pestaña Stock. Usalos para corregir inventario, registrar roturas, regalos o cualquier movimiento que no sea venta/reposición/transferencia.
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Fecha/Hora</th><th>Producto</th><th>Depósito</th><th>Cant.</th><th>Motivo</th><th>Usuario</th></tr></thead><tbody id="ajustes-body"><tr><td colspan="6" class="empty-state">Sin ajustes registrados</td></tr></tbody></table></div>
+  </div>
+</div>
+
+<!-- MODAL AJUSTE STOCK -->
+<div id="modal-ajuste" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;align-items:center;justify-content:center">
+  <div style="background:white;border-radius:16px;padding:24px;width:90%;max-width:420px">
+    <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px">⚙️ Ajuste de stock</div>
+    <div id="aj-prod-nombre" style="font-size:13px;color:var(--light-green);margin-bottom:16px"></div>
+    <input type="hidden" id="aj-prod-id">
+    <div class="form-grid">
+      <div class="field"><label>Depósito</label><select id="aj-deposito"><option value="juanma">Juanma</option><option value="sofi">Sofi</option><option value="tn">Tienda Nube</option></select></div>
+      <div class="field"><label>Tipo</label><select id="aj-tipo"><option value="sumar">➕ Sumar</option><option value="restar">➖ Restar</option><option value="fijar">🎯 Fijar en (valor exacto)</option></select></div>
+      <div class="field span2"><label>Cantidad</label><input type="number" id="aj-cantidad" min="0" value="1"></div>
+      <div class="field span2"><label>Motivo</label><select id="aj-motivo"><option value="">— Elegir —</option><option value="Corrección inventario">Corrección de inventario</option><option value="Rotura">Rotura / daño</option><option value="Regalo">Regalo / muestra</option><option value="Venta TN">Venta Tienda Nube</option><option value="Venta presencial">Venta presencial sin registrar</option><option value="Otro">Otro</option></select></div>
+      <div class="field span2" id="aj-nota-wrap" style="display:none"><label>Detalle</label><input type="text" id="aj-nota" placeholder="Describí el motivo"></div>
+    </div>
+    <div id="aj-preview" style="background:var(--cream);border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:12px;font-size:13px"></div>
+    <div class="alert" id="aj-alert" style="margin-top:12px">⚠️ Completá todos los campos.</div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-primary" id="btn-aj" onclick="confirmarAjuste()" style="margin-top:0;flex:1">✓ Confirmar ajuste</button>
+      <button class="btn" onclick="document.getElementById('modal-ajuste').style.display='none'" style="background:none;border:1.5px solid var(--border);margin-top:0;padding:12px 20px">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div id="tab-ventas" class="page">
   <div class="card">
     <div class="card-title">Registro de ventas</div>
@@ -442,14 +479,19 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// === ADMIN ===
+const ADMIN_EMAIL = 'jmolave@gmail.com';
+function isAdmin(){ return currentUser?.email === ADMIN_EMAIL; }
+window.isAdmin = isAdmin;
+
 const PRODUCTOS_INICIALES = [
-  {id:'1',nombre:'Ashwagandha',proveedor:'Cultivamente',precio:33900,costo:19579,juanma:0,sofi:0},
-  {id:'2',nombre:'Cordyceps',proveedor:'Cultivamente',precio:29900,costo:18526,juanma:0,sofi:0},
-  {id:'3',nombre:'Cúrcuma + Pimienta + Rhodiola + Jengibre',proveedor:'Cultivamente',precio:29900,costo:18526,juanma:0,sofi:0},
-  {id:'4',nombre:'Melena de León',proveedor:'Cultivamente',precio:29900,costo:18526,juanma:0,sofi:0},
-  {id:'5',nombre:'Reishi',proveedor:'Cultivamente',precio:29900,costo:18526,juanma:0,sofi:0},
-  {id:'6',nombre:'Cordyceps + Maca',proveedor:'Cultivamente',precio:29900,costo:18526,juanma:0,sofi:0},
-  {id:'7',nombre:'Reparación Hormonal',proveedor:'Yuyos de la Meme',precio:33700,costo:20220,juanma:0,sofi:0},
+  {id:'1',nombre:'Ashwagandha',proveedor:'Cultivamente',precio:33900,costo:19579,juanma:0,sofi:0,tn:0},
+  {id:'2',nombre:'Cordyceps',proveedor:'Cultivamente',precio:29900,costo:18526,juanma:0,sofi:0,tn:0},
+  {id:'3',nombre:'Cúrcuma + Pimienta + Rhodiola + Jengibre',proveedor:'Cultivamente',precio:29900,costo:18526,juanma:0,sofi:0,tn:0},
+  {id:'4',nombre:'Melena de León',proveedor:'Cultivamente',precio:29900,costo:18526,juanma:0,sofi:0,tn:0},
+  {id:'5',nombre:'Reishi',proveedor:'Cultivamente',precio:29900,costo:18526,juanma:0,sofi:0,tn:0},
+  {id:'6',nombre:'Cordyceps + Maca',proveedor:'Cultivamente',precio:29900,costo:18526,juanma:0,sofi:0,tn:0},
+  {id:'7',nombre:'Reparación Hormonal',proveedor:'Yuyos de la Meme',precio:33700,costo:20220,juanma:0,sofi:0,tn:0},
 ];
 
 let stock = [], ventas = [];
@@ -484,6 +526,10 @@ async function init() {
     transferencias = snap.docs.map(d=>({...d.data(),id:d.id}));
     renderTransferencias();
   });
+  onSnapshot(query(collection(db,'ajustes'),orderBy('timestamp','desc')), snap => {
+    ajustes = snap.docs.map(d=>({...d.data(),id:d.id}));
+    renderAjustes();
+  });
   onSnapshot(query(collection(db,'pedidos'),orderBy('timestamp','desc')), snap => {
     pedidos = snap.docs.map(d=>({...d.data(),id:d.id}));
     renderListaProveedores();
@@ -514,9 +560,27 @@ window.showTab = (tab,btn) => {
 };
 
 window.autoFillPrecio = () => {
-  const p = stock.find(x=>x.id===document.getElementById('v-producto').value);
-  if(p){document.getElementById('v-precio').value=p.precio; calcTotal();}
+  ajustarPrecioVenta();
 };
+
+// === Lógica precio consignación ===
+// Si cobro = Consignación: $23.000 para Rhodiola/Ashwagandha, $22.000 para el resto
+// Otros cobros: precio normal del producto
+function ajustarPrecioVenta(){
+  const prodId = document.getElementById('v-producto').value;
+  const cobro = document.getElementById('v-cobro').value;
+  const p = stock.find(x=>x.id===prodId);
+  if(!p) { document.getElementById('v-precio').value=''; calcTotal(); return; }
+  let precio = p.precio;
+  if(cobro === 'Consignación'){
+    const nombreLower = (p.nombre||'').toLowerCase();
+    const esCaro = nombreLower.includes('rhodiola') || nombreLower.includes('ashwagandha') || nombreLower.includes('ashwaganda');
+    precio = esCaro ? 23000 : 22000;
+  }
+  document.getElementById('v-precio').value = precio;
+  calcTotal();
+}
+window.ajustarPrecioVenta = ajustarPrecioVenta;
 
 window.calcTotal = () => {
   const c=parseFloat(document.getElementById('v-cantidad').value)||0;
@@ -564,13 +628,14 @@ window.guardarProducto = async () => {
   const costo=parseFloat(document.getElementById('s-costo').value)||0;
   const juanma=parseInt(document.getElementById('s-juanma').value)||0;
   const sofi=parseInt(document.getElementById('s-sofi').value)||0;
+  const tn=parseInt(document.getElementById('s-tn').value)||0;
   const alerta=parseInt(document.getElementById('s-alerta')?.value)||0;
   const pct=parseFloat(document.getElementById('s-pct')?.value)||40;
   const btn=document.getElementById('btn-stock');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Guardando...'; setLoading(true);
   try {
-    await setDoc(doc(db,'stock',id),{id,nombre,proveedor,precio,costo,juanma,sofi,alerta,pct});
-    ['s-nombre','s-precio','s-costo','s-juanma','s-sofi','s-id','s-pvp'].forEach(x=>{const el=document.getElementById(x);if(el)el.value='';});
+    await setDoc(doc(db,'stock',id),{id,nombre,proveedor,precio,costo,juanma,sofi,tn,alerta,pct});
+    ['s-nombre','s-precio','s-costo','s-juanma','s-sofi','s-tn','s-id','s-pvp'].forEach(x=>{const el=document.getElementById(x);if(el)el.value='';});
     document.getElementById('s-pct').value=40;
     document.getElementById('calc-margen').style.display='none';
     const ok=document.getElementById('s-ok'); ok.style.display='block'; setTimeout(()=>ok.style.display='none',2000);
@@ -587,6 +652,7 @@ window.editarProducto = id => {
   document.getElementById('s-costo').value=p.costo;
   document.getElementById('s-juanma').value=p.juanma||0;
   document.getElementById('s-sofi').value=p.sofi||0;
+  document.getElementById('s-tn').value=p.tn||0;
   document.getElementById('btn-stock').innerHTML='💾 Actualizar producto';
   document.querySelector('[onclick="showTab(\'stock\',this)"]').click();
   window.scrollTo(0,0);
@@ -631,17 +697,20 @@ function fillProductoSelect(){
 function renderStock(){
   checkAlertas();
   const tbody=document.getElementById('stock-body');
-  if(!stock.length){tbody.innerHTML='<tr><td colspan="8" class="empty-state">Sin productos</td></tr>';return;}
+  if(!stock.length){tbody.innerHTML='<tr><td colspan="9" class="empty-state">Sin productos</td></tr>';return;}
+  const admin = isAdmin();
   tbody.innerHTML=stock.map(p=>{
-    const total=(p.juanma||0)+(p.sofi||0),mx=Math.max(total,6);
-    const pJ=total?Math.round(((p.juanma||0)/mx)*100):0,pS=total?Math.round(((p.sofi||0)/mx)*100):0;
+    const total=(p.juanma||0)+(p.sofi||0)+(p.tn||0),mx=Math.max(total,6);
+    const pJ=total?Math.round(((p.juanma||0)/mx)*100):0,pS=total?Math.round(((p.sofi||0)/mx)*100):0,pT=total?Math.round(((p.tn||0)/mx)*100):0;
+    const btnAjustar = admin ? `<button class="btn-sm" style="border-color:#7C3AED;color:#7C3AED" onclick="abrirModalAjuste('${p.id}')">⚙️</button>` : '';
     return `<tr>
       <td style="font-weight:500">${p.nombre}</td><td style="font-size:12px;color:var(--light-green)">${p.proveedor}</td>
       <td>${fmt(p.precio)}</td><td style="color:var(--light-green)">${fmt(p.costo)}</td>
       <td><div class="stock-bar-wrap"><div class="stock-bar"><div class="stock-bar-fill" style="width:${pJ}%"></div></div><span style="font-size:12px;font-weight:600;min-width:20px;text-align:right">${p.juanma||0}</span></div></td>
       <td><div class="stock-bar-wrap"><div class="stock-bar"><div class="stock-bar-fill" style="width:${pS}%;background:var(--yellow)"></div></div><span style="font-size:12px;font-weight:600;min-width:20px;text-align:right">${p.sofi||0}</span></div></td>
+      <td><div class="stock-bar-wrap"><div class="stock-bar"><div class="stock-bar-fill" style="width:${pT}%;background:#1D4ED8"></div></div><span style="font-size:12px;font-weight:600;min-width:20px;text-align:right">${p.tn||0}</span></div></td>
       <td style="font-weight:700">${total}</td>
-      <td style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn-sm" onclick="editarProducto('${p.id}')">Editar</button><button class="btn-danger" onclick="eliminarProducto('${p.id}')">✕</button></td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">${btnAjustar}<button class="btn-sm" onclick="editarProducto('${p.id}')">Editar</button><button class="btn-danger" onclick="eliminarProducto('${p.id}')">✕</button></td>
     </tr>`;
   }).join('');
 }
@@ -664,7 +733,7 @@ function renderResumen(){
   const tI=ventas.reduce((a,v)=>a+v.total,0),tG=ventas.reduce((a,v)=>a+v.ganancia,0);
   const tU=ventas.reduce((a,v)=>a+v.cantidad,0),co=ventas.filter(v=>v.cobro==='Consignación').reduce((a,v)=>a+v.total,0);
   const jV=ventas.filter(v=>v.vendedor==='Juanma'),sV=ventas.filter(v=>v.vendedor==='Sofi');
-  const stJ=stock.reduce((a,p)=>a+(p.juanma||0),0),stS=stock.reduce((a,p)=>a+(p.sofi||0),0);
+  const stJ=stock.reduce((a,p)=>a+(p.juanma||0),0),stS=stock.reduce((a,p)=>a+(p.sofi||0),0),stT=stock.reduce((a,p)=>a+(p.tn||0),0);
   document.getElementById('stats-container').innerHTML=`
     <div class="stats-grid">
       <div class="stat"><div class="stat-label">Ingresos totales</div><div class="stat-value green">${fmt(tI)}</div></div>
@@ -681,11 +750,12 @@ function renderResumen(){
     <div class="stats-grid">
       <div class="stat"><div class="stat-label">Stock Juanma</div><div class="stat-value">${stJ} uds</div></div>
       <div class="stat"><div class="stat-label">Stock Sofi</div><div class="stat-value">${stS} uds</div></div>
-      <div class="stat"><div class="stat-label">Stock total</div><div class="stat-value">${stJ+stS} uds</div></div>
+      <div class="stat"><div class="stat-label">Stock Tienda Nube</div><div class="stat-value">${stT} uds</div></div>
+      <div class="stat"><div class="stat-label">Stock total</div><div class="stat-value">${stJ+stS+stT} uds</div></div>
     </div>
     <div class="section-title">Stock por producto</div>
-    <div class="card"><div class="table-wrap"><table><thead><tr><th>Producto</th><th>Juanma</th><th>Sofi</th><th>Total</th></tr></thead><tbody>
-      ${stock.map(p=>`<tr><td style="font-weight:500">${p.nombre}</td><td style="text-align:center">${p.juanma||0}</td><td style="text-align:center">${p.sofi||0}</td><td style="text-align:center;font-weight:700">${(p.juanma||0)+(p.sofi||0)}</td></tr>`).join('')}
+    <div class="card"><div class="table-wrap"><table><thead><tr><th>Producto</th><th>Juanma</th><th>Sofi</th><th>TN</th><th>Total</th></tr></thead><tbody>
+      ${stock.map(p=>`<tr><td style="font-weight:500">${p.nombre}</td><td style="text-align:center">${p.juanma||0}</td><td style="text-align:center">${p.sofi||0}</td><td style="text-align:center">${p.tn||0}</td><td style="text-align:center;font-weight:700">${(p.juanma||0)+(p.sofi||0)+(p.tn||0)}</td></tr>`).join('')}
     </tbody></table></div></div>`;
 }
 
@@ -717,6 +787,9 @@ onAuthStateChanged(auth, user => {
     document.getElementById('user-name').textContent = user.displayName?.split(' ')[0] || user.email;
     document.getElementById('user-avatar').src = user.photoURL || '';
     document.getElementById('conn-status') && (document.getElementById('conn-status').textContent = '');
+    // Mostrar elementos admin si corresponde
+    const showAdmin = isAdmin();
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = showAdmin ? '' : 'none');
     init();
   } else {
     currentUser = null;
@@ -769,7 +842,7 @@ function checkAlertas() {
     if(p.proveedor === 'Yuyos de la Meme') return false;
     const minimo = parseInt(p.alerta) || 0;
     if(!minimo) return false;
-    const total = (p.juanma||0) + (p.sofi||0);
+    const total = (p.juanma||0) + (p.sofi||0) + (p.tn||0);
     return total <= minimo;
   });
   const cont = document.getElementById('alertas-container');
@@ -777,7 +850,7 @@ function checkAlertas() {
   if(!alertas.length) { cont.innerHTML = ''; return; }
   cont.innerHTML = alertas.map(p => `
     <div style="background:#FEE2E2;border:1px solid var(--red);border-radius:8px;padding:10px 16px;margin-bottom:8px;font-size:13px;display:flex;justify-content:space-between;align-items:center">
-      <span>⚠️ <strong>${p.nombre}</strong> — stock bajo: ${(p.juanma||0)+(p.sofi||0)} uds (mínimo: ${p.alerta})</span>
+      <span>⚠️ <strong>${p.nombre}</strong> — stock bajo: ${(p.juanma||0)+(p.sofi||0)+(p.tn||0)} uds (mínimo: ${p.alerta})</span>
     </div>`).join('');
 }
 
@@ -1089,6 +1162,7 @@ window.registrarPedido = async () => {
       const u={...prod};
       if(deposito==='juanma') u.juanma=(prod.juanma||0)+cantidad;
       if(deposito==='sofi') u.sofi=(prod.sofi||0)+cantidad;
+      if(deposito==='tn') u.tn=(prod.tn||0)+cantidad;
       await setDoc(doc(db,'stock',prod.id),u);
     }
     const id=Date.now().toString();
@@ -1261,6 +1335,7 @@ window.reponerStock = async () => {
       const u={...prod};
       if(deposito==='juanma') u.juanma=(prod.juanma||0)+cantidad;
       if(deposito==='sofi') u.sofi=(prod.sofi||0)+cantidad;
+      if(deposito==='tn') u.tn=(prod.tn||0)+cantidad;
       await setDoc(doc(db,'stock',prod.id),u);
     }
     const id=Date.now().toString();
@@ -1282,32 +1357,40 @@ window.mostrarStockActual = () => {
   const id=document.getElementById('t-producto').value;
   const p=stock.find(x=>x.id===id);
   const el=document.getElementById('t-stock-actual');
-  if(p) el.innerHTML=`<span style="color:var(--green);font-weight:600">Juanma: ${p.juanma||0}</span> &nbsp;|&nbsp; <span style="color:#92400E;font-weight:600">Sofi: ${p.sofi||0}</span>`;
+  if(p) el.innerHTML=`<span style="color:var(--green);font-weight:600">Juanma: ${p.juanma||0}</span> &nbsp;|&nbsp; <span style="color:#92400E;font-weight:600">Sofi: ${p.sofi||0}</span> &nbsp;|&nbsp; <span style="color:#1D4ED8;font-weight:600">TN: ${p.tn||0}</span>`;
   else el.textContent='Elegí un producto para ver el stock';
 };
+
+const labelDeposito = d => d==='juanma'?'Juanma':d==='sofi'?'Sofi':d==='tn'?'Tienda Nube':d;
+window.labelDeposito = labelDeposito;
 
 window.transferirStock = async () => {
   const prodId=document.getElementById('t-producto').value;
   const cantidad=parseInt(document.getElementById('t-cantidad').value);
-  const direccion=document.getElementById('t-direccion').value;
-  if(!prodId||!cantidad){document.getElementById('t-alert').style.display='block';return;}
+  const origen=document.getElementById('t-origen').value;
+  const destino=document.getElementById('t-destino').value;
+  if(!prodId||!cantidad||!origen||!destino){document.getElementById('t-alert').style.display='block';document.getElementById('t-alert').textContent='⚠️ Completá todos los campos.';return;}
+  if(origen===destino){document.getElementById('t-alert').style.display='block';document.getElementById('t-alert').textContent='⚠️ Origen y destino no pueden ser iguales.';return;}
+  const prod=stock.find(x=>x.id===prodId);
+  if(!prod){document.getElementById('t-alert').style.display='block';return;}
+  const stockOrigen = prod[origen]||0;
+  if(stockOrigen < cantidad){
+    document.getElementById('t-alert').style.display='block';
+    document.getElementById('t-alert').textContent=`⚠️ Stock insuficiente en ${labelDeposito(origen)}: solo hay ${stockOrigen}.`;
+    return;
+  }
   document.getElementById('t-alert').style.display='none';
   const btn=document.getElementById('btn-transferir');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Transfiriendo...'; setLoading(true);
   try {
-    const prod=stock.find(x=>x.id===prodId);
-    if(prod){
-      const u={...prod};
-      if(direccion==='juanma-sofi'){u.juanma=(prod.juanma||0)-cantidad; u.sofi=(prod.sofi||0)+cantidad;}
-      else {u.sofi=(prod.sofi||0)-cantidad; u.juanma=(prod.juanma||0)+cantidad;}
-      await setDoc(doc(db,'stock',prod.id),u);
-    }
+    const u={...prod};
+    u[origen] = (prod[origen]||0) - cantidad;
+    u[destino] = (prod[destino]||0) + cantidad;
+    await setDoc(doc(db,'stock',prod.id),u);
     const id=Date.now().toString();
     const now=new Date();
     const fechaHora=`${now.toLocaleDateString('es-AR')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
-    const de=direccion==='juanma-sofi'?'Juanma':'Sofi';
-    const a=direccion==='juanma-sofi'?'Sofi':'Juanma';
-    await setDoc(doc(db,'transferencias',id),{id,fechaHora,producto:prod?.nombre||'',prodId,cantidad,de,a,timestamp:Date.now()});
+    await setDoc(doc(db,'transferencias',id),{id,fechaHora,producto:prod?.nombre||'',prodId,cantidad,de:labelDeposito(origen),a:labelDeposito(destino),origen,destino,timestamp:Date.now()});
     document.getElementById('t-producto').value='';
     document.getElementById('t-cantidad').value=1;
     document.getElementById('t-stock-actual').textContent='Elegí un producto para ver el stock';
@@ -1326,26 +1409,144 @@ function fillTransferirSelect(){
 function renderReposiciones(){
   const tbody=document.getElementById('reponer-body');
   if(!reposiciones.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state">Sin reposiciones registradas</td></tr>';return;}
-  tbody.innerHTML=reposiciones.map(r=>`<tr>
-    <td style="font-size:12px;white-space:nowrap">${r.fechaHora}</td>
-    <td style="font-size:12px;color:var(--light-green)">${r.proveedor}</td>
-    <td style="font-weight:500">${r.producto}</td>
-    <td style="text-align:center;font-weight:600">+${r.cantidad}</td>
-    <td><span class="badge ${r.deposito==='juanma'?'badge-juanma':'badge-sofi'}">${r.deposito==='juanma'?'Juanma':'Sofi'}</span></td>
-    <td style="font-size:12px;color:var(--light-green)">${r.referencia||'—'}</td>
-  </tr>`).join('');
+  tbody.innerHTML=reposiciones.map(r=>{
+    const badgeClass = r.deposito==='juanma'?'badge-juanma':r.deposito==='sofi'?'badge-sofi':'badge-tn';
+    return `<tr>
+      <td style="font-size:12px;white-space:nowrap">${r.fechaHora}</td>
+      <td style="font-size:12px;color:var(--light-green)">${r.proveedor}</td>
+      <td style="font-weight:500">${r.producto}</td>
+      <td style="text-align:center;font-weight:600">+${r.cantidad}</td>
+      <td><span class="badge ${badgeClass}">${labelDeposito(r.deposito)}</span></td>
+      <td style="font-size:12px;color:var(--light-green)">${r.referencia||'—'}</td>
+    </tr>`;
+  }).join('');
 }
 
 function renderTransferencias(){
   const tbody=document.getElementById('transferir-body');
   if(!transferencias.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">Sin transferencias registradas</td></tr>';return;}
+  const badgeFor = n => n==='Juanma'?'badge-juanma':n==='Sofi'?'badge-sofi':'badge-tn';
   tbody.innerHTML=transferencias.map(t=>`<tr>
     <td style="font-size:12px;white-space:nowrap">${t.fechaHora}</td>
     <td style="font-weight:500">${t.producto}</td>
     <td style="text-align:center;font-weight:600">${t.cantidad}</td>
-    <td><span class="badge ${t.de==='Juanma'?'badge-juanma':'badge-sofi'}">${t.de}</span></td>
-    <td><span class="badge ${t.a==='Sofi'?'badge-sofi':'badge-juanma'}">${t.a}</span></td>
+    <td><span class="badge ${badgeFor(t.de)}">${t.de}</span></td>
+    <td><span class="badge ${badgeFor(t.a)}">${t.a}</span></td>
   </tr>`).join('');
+}
+
+// ===== AJUSTES MANUALES DE STOCK (solo admin) =====
+let ajustes = [];
+
+window.abrirModalAjuste = (prodId) => {
+  if(!isAdmin()){ alert('Solo el admin puede ajustar stock manualmente.'); return; }
+  const p = stock.find(x=>x.id===prodId);
+  if(!p) return;
+  document.getElementById('aj-prod-id').value = prodId;
+  document.getElementById('aj-prod-nombre').textContent = p.nombre;
+  document.getElementById('aj-deposito').value = 'juanma';
+  document.getElementById('aj-tipo').value = 'sumar';
+  document.getElementById('aj-cantidad').value = 1;
+  document.getElementById('aj-motivo').value = '';
+  document.getElementById('aj-nota').value = '';
+  document.getElementById('aj-nota-wrap').style.display = 'none';
+  document.getElementById('aj-alert').style.display = 'none';
+  actualizarPreviewAjuste();
+  document.getElementById('modal-ajuste').style.display = 'flex';
+};
+
+function actualizarPreviewAjuste(){
+  const prodId = document.getElementById('aj-prod-id').value;
+  const p = stock.find(x=>x.id===prodId); if(!p) return;
+  const dep = document.getElementById('aj-deposito').value;
+  const tipo = document.getElementById('aj-tipo').value;
+  const cant = parseInt(document.getElementById('aj-cantidad').value)||0;
+  const actual = p[dep]||0;
+  let nuevo = actual;
+  if(tipo==='sumar') nuevo = actual + cant;
+  if(tipo==='restar') nuevo = actual - cant;
+  if(tipo==='fijar') nuevo = cant;
+  const color = nuevo < 0 ? 'var(--red)' : 'var(--green)';
+  document.getElementById('aj-preview').innerHTML =
+    `<strong>${labelDeposito(dep)}:</strong> ${actual} → <strong style="color:${color}">${nuevo}</strong> uds`;
+}
+
+['aj-deposito','aj-tipo','aj-cantidad'].forEach(id => {
+  document.addEventListener('DOMContentLoaded', () => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('input', actualizarPreviewAjuste);
+    if(el) el.addEventListener('change', actualizarPreviewAjuste);
+  });
+});
+// Como el script está al final, los elementos ya existen — bindeo directo también:
+setTimeout(() => {
+  ['aj-deposito','aj-tipo','aj-cantidad'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el){ el.addEventListener('input', actualizarPreviewAjuste); el.addEventListener('change', actualizarPreviewAjuste); }
+  });
+  const motivo = document.getElementById('aj-motivo');
+  if(motivo) motivo.addEventListener('change', () => {
+    document.getElementById('aj-nota-wrap').style.display = motivo.value==='Otro' ? 'block' : 'none';
+  });
+}, 0);
+
+window.confirmarAjuste = async () => {
+  if(!isAdmin()){ alert('Solo el admin puede ajustar stock.'); return; }
+  const prodId = document.getElementById('aj-prod-id').value;
+  const p = stock.find(x=>x.id===prodId);
+  const dep = document.getElementById('aj-deposito').value;
+  const tipo = document.getElementById('aj-tipo').value;
+  const cant = parseInt(document.getElementById('aj-cantidad').value)||0;
+  const motivo = document.getElementById('aj-motivo').value;
+  const nota = document.getElementById('aj-nota').value;
+  if(!p || !dep || !cant || !motivo){ document.getElementById('aj-alert').style.display='block'; return; }
+  document.getElementById('aj-alert').style.display='none';
+  const actual = p[dep]||0;
+  let nuevo = actual, delta = 0;
+  if(tipo==='sumar'){ nuevo = actual + cant; delta = cant; }
+  if(tipo==='restar'){ nuevo = actual - cant; delta = -cant; }
+  if(tipo==='fijar'){ nuevo = cant; delta = cant - actual; }
+  if(nuevo < 0){
+    if(!confirm(`El stock quedará en ${nuevo} (negativo). ¿Continuar igual?`)) return;
+  }
+  const btn = document.getElementById('btn-aj');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Guardando...'; setLoading(true);
+  try {
+    const u = {...p}; u[dep] = nuevo;
+    await setDoc(doc(db,'stock',p.id), u);
+    const id = Date.now().toString();
+    const now = new Date();
+    const fechaHora = `${now.toLocaleDateString('es-AR')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+    await setDoc(doc(db,'ajustes',id), {
+      id, fechaHora, prodId, producto: p.nombre, deposito: dep,
+      tipo, cantidad: cant, delta, anterior: actual, nuevo,
+      motivo, nota: motivo==='Otro' ? nota : '',
+      usuario: currentUser?.displayName || currentUser?.email || 'admin',
+      timestamp: Date.now()
+    });
+    document.getElementById('modal-ajuste').style.display = 'none';
+  } catch(e){ alert('Error: '+e.message); }
+  btn.disabled = false; btn.innerHTML = '✓ Confirmar ajuste'; setLoading(false);
+};
+
+function renderAjustes(){
+  const tbody = document.getElementById('ajustes-body');
+  if(!tbody) return;
+  if(!ajustes.length){ tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Sin ajustes registrados</td></tr>'; return; }
+  const badgeFor = d => d==='juanma'?'badge-juanma':d==='sofi'?'badge-sofi':'badge-tn';
+  tbody.innerHTML = ajustes.map(a => {
+    const signo = a.delta > 0 ? '+' : '';
+    const color = a.delta > 0 ? 'var(--green)' : 'var(--red)';
+    const motivoTxt = a.motivo==='Otro' && a.nota ? a.nota : a.motivo;
+    return `<tr>
+      <td style="font-size:12px;white-space:nowrap">${a.fechaHora}</td>
+      <td style="font-weight:500">${a.producto}</td>
+      <td><span class="badge ${badgeFor(a.deposito)}">${labelDeposito(a.deposito)}</span></td>
+      <td style="text-align:center;font-weight:700;color:${color}">${signo}${a.delta}</td>
+      <td style="font-size:12px"><span class="badge badge-ajuste">${motivoTxt}</span></td>
+      <td style="font-size:11px;color:var(--light-green)">${a.usuario||'—'}</td>
+    </tr>`;
+  }).join('');
 }
 
 </script>
