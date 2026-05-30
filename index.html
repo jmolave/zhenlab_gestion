@@ -117,6 +117,8 @@
   <button class="tab" onclick="showTab('transferir',this)">🔄 Transferir</button>
   <button class="tab" onclick="showTab('proveedores',this)">🏭 Proveedores</button>
   <button class="tab" onclick="showTab('ventas',this)">📋 Ventas</button>
+  <button class="tab" onclick="showTab('clientes',this)">👥 Clientes</button>
+  <button class="tab" onclick="showTab('seguimientos',this)">🔔 Seguimientos <span id="seg-badge" style="display:none;background:var(--red);color:white;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px"></span></button>
   <button class="tab admin-only" id="tab-btn-ajustes" onclick="showTab('ajustes',this)" style="display:none">⚙️ Ajustes</button>
   <button class="tab" onclick="showTab('resumen',this)">📊 Resumen</button>
 </div>
@@ -460,6 +462,79 @@
   <div id="stats-container"><div class="empty-state">Cargando...</div></div>
 </div>
 
+<!-- ===== CLIENTES (CRM) ===== -->
+<div id="tab-clientes" class="page">
+  <div class="card">
+    <div class="card-title">Nuevo cliente</div>
+    <div class="form-grid">
+      <div class="field span2"><label>Nombre</label><input type="text" id="c-nombre" placeholder="Nombre y apellido"></div>
+      <div class="field"><label>Teléfono (pegá de WhatsApp)</label><input type="text" id="c-tel" placeholder="Ej: 223 584-7727" oninput="previewTelCliente()"></div>
+      <div class="field"><label>Origen</label>
+        <select id="c-origen">
+          <option value="Instagram">Instagram</option>
+          <option value="Local">Local</option>
+          <option value="Referido">Referido</option>
+          <option value="Tiendanube">Tiendanube</option>
+          <option value="Otro">Otro</option>
+        </select>
+      </div>
+      <div class="field"><label>Etapa</label>
+        <select id="c-etapa">
+          <option value="Nuevo">Nuevo</option>
+          <option value="Consultó">Consultó</option>
+          <option value="Cotizó">Cotizó</option>
+          <option value="Compró">Compró</option>
+          <option value="Recompra">Recompra</option>
+        </select>
+      </div>
+      <div class="field"><label>Detectado WhatsApp</label><input type="text" id="c-tel-preview" readonly style="background:#EEE;color:var(--light-green)" placeholder="—"></div>
+      <div class="field span2"><label>Notas</label><input type="text" id="c-notas" placeholder="Qué consultó, qué le interesa..."></div>
+    </div>
+    <button class="btn btn-primary" id="btn-cli" onclick="guardarCliente()">＋ Agregar cliente</button>
+    <div class="success-msg" id="cli-success">✓ Cliente guardado</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Clientes</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      <select id="filtro-etapa" onchange="renderClientes()" style="max-width:200px">
+        <option value="">Todas las etapas</option>
+        <option value="Nuevo">Nuevo</option>
+        <option value="Consultó">Consultó</option>
+        <option value="Cotizó">Cotizó</option>
+        <option value="Compró">Compró</option>
+        <option value="Recompra">Recompra</option>
+      </select>
+      <input type="text" id="filtro-buscar" placeholder="Buscar nombre..." oninput="renderClientes()" style="max-width:200px">
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Cliente</th><th>Origen</th><th>Etapa</th><th>WhatsApp</th><th></th></tr></thead>
+        <tbody id="clientes-body"><tr><td colspan="5" class="empty-state">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SEGUIMIENTOS ===== -->
+<div id="tab-seguimientos" class="page">
+  <div class="card">
+    <div class="card-title">Nuevo recordatorio</div>
+    <div class="form-grid">
+      <div class="field"><label>Cliente</label><select id="sg-cliente"><option value="">— Elegir —</option></select></div>
+      <div class="field"><label>Fecha</label><input type="date" id="sg-fecha"></div>
+      <div class="field span2"><label>Nota</label><input type="text" id="sg-nota" placeholder="Ej: escribirle para cerrar el pedido"></div>
+    </div>
+    <button class="btn btn-primary" id="btn-seg" onclick="guardarSeguimiento()">＋ Agregar recordatorio</button>
+    <div class="success-msg" id="seg-success">✓ Recordatorio guardado</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Pendientes</div>
+    <div id="seguimientos-list"><div class="empty-state">Cargando...</div></div>
+  </div>
+</div>
+
 </div>
 
 <script type="module">
@@ -549,6 +624,14 @@ async function init() {
     proveedoresList = snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>a.nombre.localeCompare(b.nombre));
     fillProveedorSelects();
     renderListaProveedores();
+  });
+  onSnapshot(query(collection(db,'clientes'),orderBy('timestamp','desc')), snap => {
+    clientes = snap.docs.map(d=>({...d.data(),id:d.id}));
+    renderClientes(); fillClienteSelect();
+  });
+  onSnapshot(query(collection(db,'seguimientos'),orderBy('fecha','asc')), snap => {
+    seguimientos = snap.docs.map(d=>({...d.data(),id:d.id}));
+    renderSeguimientos();
   });
 }
 
@@ -1548,6 +1631,195 @@ function renderAjustes(){
     </tr>`;
   }).join('');
 }
+
+// ===== CRM: CLIENTES Y SEGUIMIENTOS =====
+let clientes = [], seguimientos = [];
+
+// --- Normalización de teléfono argentino para wa.me ---
+function normalizarTel(raw){
+  if(!raw) return '';
+  let n = raw.replace(/[^\d]/g,''); // solo dígitos
+  if(!n) return '';
+  // Sacar 0 inicial (código de área nacional)
+  if(n.startsWith('0')) n = n.slice(1);
+  // Si ya viene con 54
+  if(n.startsWith('54')){
+    let resto = n.slice(2);
+    if(resto.startsWith('9')) resto = resto.slice(1); // sacar el 9 para re-normalizar
+    // sacar 15 si quedó pegado al área (heurística: 15 después del área)
+    resto = resto.replace(/^(\d{2,4})15(\d+)/, '$1$2');
+    return '549' + resto;
+  }
+  // Sin código país: sacar 15 de celular
+  n = n.replace(/^(\d{2,4})15(\d+)/, '$1$2');
+  return '549' + n;
+}
+
+window.previewTelCliente = () => {
+  const raw = document.getElementById('c-tel').value;
+  const wa = normalizarTel(raw);
+  document.getElementById('c-tel-preview').value = wa ? '+' + wa : '—';
+};
+
+window.guardarCliente = async () => {
+  const nombre = document.getElementById('c-nombre').value.trim();
+  const telCrudo = document.getElementById('c-tel').value.trim();
+  if(!nombre){ alert('Falta el nombre.'); return; }
+  const telWa = normalizarTel(telCrudo);
+  const btn = document.getElementById('btn-cli');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Guardando...'; setLoading(true);
+  try {
+    const id = Date.now().toString();
+    await setDoc(doc(db,'clientes',id), {
+      id, nombre,
+      telCrudo, telWa,
+      origen: document.getElementById('c-origen').value,
+      etapa: document.getElementById('c-etapa').value,
+      notas: document.getElementById('c-notas').value.trim(),
+      usuario: currentUser?.displayName || currentUser?.email || '',
+      timestamp: Date.now()
+    });
+    ['c-nombre','c-tel','c-notas'].forEach(x=>document.getElementById(x).value='');
+    document.getElementById('c-tel-preview').value='—';
+    document.getElementById('c-etapa').value='Nuevo';
+    const s=document.getElementById('cli-success'); s.style.display='block'; setTimeout(()=>s.style.display='none',2000);
+  } catch(e){ alert('Error: '+e.message); }
+  btn.disabled=false; btn.innerHTML='＋ Agregar cliente'; setLoading(false);
+};
+
+window.cambiarEtapa = async (id, etapa) => {
+  const c = clientes.find(x=>x.id===id); if(!c) return;
+  setLoading(true);
+  try { await setDoc(doc(db,'clientes',id), {...c, etapa}); }
+  catch(e){ alert('Error: '+e.message); }
+  setLoading(false);
+};
+
+window.borrarCliente = async (id) => {
+  const c = clientes.find(x=>x.id===id); if(!c) return;
+  if(!confirm(`¿Borrar a ${c.nombre}? Esto no se puede deshacer.`)) return;
+  setLoading(true);
+  try { await deleteDoc(doc(db,'clientes',id)); }
+  catch(e){ alert('Error: '+e.message); }
+  setLoading(false);
+};
+
+function badgeEtapa(e){
+  const map = {'Nuevo':'badge-tn','Consultó':'badge-sofi','Cotizó':'badge-ajuste','Compró':'badge-juanma','Recompra':'badge-efec'};
+  return map[e] || 'badge-tn';
+}
+
+window.renderClientes = () => {
+  const tbody = document.getElementById('clientes-body');
+  if(!tbody) return;
+  const fEtapa = document.getElementById('filtro-etapa')?.value || '';
+  const fBuscar = (document.getElementById('filtro-buscar')?.value || '').toLowerCase();
+  let lista = clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  if(fEtapa) lista = lista.filter(c=>c.etapa===fEtapa);
+  if(fBuscar) lista = lista.filter(c=>c.nombre.toLowerCase().includes(fBuscar));
+  if(!lista.length){ tbody.innerHTML='<tr><td colspan="5" class="empty-state">Sin clientes</td></tr>'; return; }
+  const etapas = ['Nuevo','Consultó','Cotizó','Compró','Recompra'];
+  tbody.innerHTML = lista.map(c => {
+    const opciones = etapas.map(e=>`<option value="${e}" ${c.etapa===e?'selected':''}>${e}</option>`).join('');
+    const wa = c.telWa ? `<a href="https://wa.me/${c.telWa}" target="_blank" class="btn-sm" style="text-decoration:none">💬 Abrir</a>` : '<span style="color:var(--light-green);font-size:12px">sin tel</span>';
+    return `<tr>
+      <td><div style="font-weight:600">${c.nombre}</div>${c.notas?`<div style="font-size:11px;color:var(--light-green)">${c.notas}</div>`:''}</td>
+      <td><span style="font-size:12px">${c.origen||'—'}</span></td>
+      <td><select onchange="cambiarEtapa('${c.id}',this.value)" style="padding:4px 8px;font-size:12px;width:auto;border-color:var(--border)">${opciones}</select></td>
+      <td>${wa}<div style="font-size:10px;color:var(--light-green);margin-top:2px">${c.telCrudo||''}</div></td>
+      <td><button class="btn-danger" onclick="borrarCliente('${c.id}')">✕</button></td>
+    </tr>`;
+  }).join('');
+};
+
+// --- Seguimientos ---
+function fillClienteSelect(){
+  const sel = document.getElementById('sg-cliente');
+  if(!sel) return;
+  const curr = sel.value;
+  sel.innerHTML = '<option value="">— Elegir —</option>';
+  clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(c=>{
+    const o=document.createElement('option'); o.value=c.id; o.textContent=c.nombre; sel.appendChild(o);
+  });
+  if(curr) sel.value=curr;
+}
+
+window.guardarSeguimiento = async () => {
+  const cliId = document.getElementById('sg-cliente').value;
+  const fecha = document.getElementById('sg-fecha').value;
+  const nota = document.getElementById('sg-nota').value.trim();
+  if(!cliId){ alert('Elegí un cliente.'); return; }
+  if(!fecha){ alert('Poné una fecha.'); return; }
+  const cli = clientes.find(c=>c.id===cliId);
+  const btn = document.getElementById('btn-seg');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Guardando...'; setLoading(true);
+  try {
+    const id = Date.now().toString();
+    await setDoc(doc(db,'seguimientos',id), {
+      id, clienteId: cliId, clienteNombre: cli?.nombre||'', telWa: cli?.telWa||'',
+      fecha, nota, hecho: false, timestamp: Date.now()
+    });
+    document.getElementById('sg-nota').value='';
+    const s=document.getElementById('seg-success'); s.style.display='block'; setTimeout(()=>s.style.display='none',2000);
+  } catch(e){ alert('Error: '+e.message); }
+  btn.disabled=false; btn.innerHTML='＋ Agregar recordatorio'; setLoading(false);
+};
+
+window.marcarHecho = async (id) => {
+  const s = seguimientos.find(x=>x.id===id); if(!s) return;
+  setLoading(true);
+  try { await setDoc(doc(db,'seguimientos',id), {...s, hecho:true}); }
+  catch(e){ alert('Error: '+e.message); }
+  setLoading(false);
+};
+
+window.borrarSeguimiento = async (id) => {
+  if(!confirm('¿Borrar este recordatorio?')) return;
+  setLoading(true);
+  try { await deleteDoc(doc(db,'seguimientos',id)); }
+  catch(e){ alert('Error: '+e.message); }
+  setLoading(false);
+};
+
+function renderSeguimientos(){
+  const cont = document.getElementById('seguimientos-list');
+  if(!cont) return;
+  const pendientes = seguimientos.filter(s=>!s.hecho).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  // Badge en el tab
+  const hoy = new Date().toISOString().split('T')[0];
+  const vencenHoy = pendientes.filter(s=>s.fecha<=hoy).length;
+  const badge = document.getElementById('seg-badge');
+  if(badge){ if(vencenHoy>0){ badge.style.display='inline-block'; badge.textContent=vencenHoy; } else badge.style.display='none'; }
+  if(!pendientes.length){ cont.innerHTML='<div class="empty-state">Sin recordatorios pendientes</div>'; return; }
+  cont.innerHTML = pendientes.map(s => {
+    const vencido = s.fecha < hoy;
+    const esHoy = s.fecha === hoy;
+    const color = vencido ? 'var(--red)' : esHoy ? 'var(--yellow)' : 'var(--border)';
+    const etiqueta = vencido ? '<span style="color:var(--red);font-weight:600">VENCIDO</span>' : esHoy ? '<span style="color:#92400E;font-weight:600">HOY</span>' : '';
+    const fechaTxt = s.fecha ? s.fecha.split('-').reverse().join('/') : '';
+    const wa = s.telWa ? `<a href="https://wa.me/${s.telWa}" target="_blank" class="btn-sm" style="text-decoration:none">💬</a>` : '';
+    return `<div class="card" style="border-left:4px solid ${color};margin-bottom:10px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-weight:600">${s.clienteNombre} ${etiqueta}</div>
+          <div style="font-size:13px;margin-top:2px">${s.nota||''}</div>
+          <div style="font-size:11px;color:var(--light-green);margin-top:4px">📅 ${fechaTxt}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${wa}
+          <button class="btn-sm" onclick="marcarHecho('${s.id}')">✓ Hecho</button>
+          <button class="btn-danger" onclick="borrarSeguimiento('${s.id}')">✕</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Fecha de hoy por defecto en el form de seguimiento
+setTimeout(()=>{
+  const f=document.getElementById('sg-fecha');
+  if(f && !f.value) f.value = new Date().toISOString().split('T')[0];
+},0);
 
 </script>
 </div><!-- end app-screen -->
